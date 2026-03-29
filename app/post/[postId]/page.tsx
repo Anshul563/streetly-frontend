@@ -25,6 +25,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type PostDetail = {
   id: number;
@@ -243,10 +244,61 @@ export default function PostDetailPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <Loader2 className="w-10 h-10 animate-spin text-primary" />
-          <p className="text-sm">Loading...</p>
+      <div className="min-h-screen bg-background text-foreground">
+        {/* Top bar */}
+        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
+          <Skeleton className="w-9 h-9 rounded-lg shrink-0" />
+          <Skeleton className="h-4 w-24 flex-1" />
+          <Skeleton className="h-6 w-16 rounded-full shrink-0" />
+        </div>
+
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+          {/* Author row */}
+          <div className="flex items-center gap-4">
+            <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-3 w-24" />
+            </div>
+            <Skeleton className="h-3 w-20" />
+          </div>
+
+          {/* Content lines */}
+          <div className="space-y-2">
+            <Skeleton className="h-7 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-5/6" />
+            <Skeleton className="h-4 w-4/5" />
+          </div>
+
+          {/* Image */}
+          <Skeleton className="w-full aspect-video rounded-2xl" />
+
+          <Separator />
+
+          {/* Action buttons */}
+          <div className="flex gap-2">
+            <Skeleton className="h-10 flex-1 rounded-lg" />
+            <Skeleton className="h-10 flex-1 rounded-lg" />
+            <Skeleton className="h-10 flex-1 rounded-lg" />
+          </div>
+
+          {/* Comments */}
+          <div className="space-y-3">
+            <Skeleton className="h-5 w-24" />
+            <Skeleton className="h-12 w-full rounded-xl" />
+            <div className="space-y-2 pt-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} className="border border-border rounded-xl p-3 space-y-2">
+                  <div className="flex justify-between">
+                    <Skeleton className="h-3.5 w-24" />
+                    <Skeleton className="h-3 w-20" />
+                  </div>
+                  <Skeleton className="h-3 w-5/6" />
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -299,7 +351,7 @@ export default function PostDetailPage() {
         )}
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6 mb-16 md:mb-0">
         {/* Author Card */}
         <Link
           href={post.user?.username ? `/${post.user.username}` : "#"}

@@ -21,6 +21,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const NAV_ITEMS = [
   { href: "/feed",         icon: Home,       label: "Home" },
@@ -35,7 +36,7 @@ type Props = {
 
 export function FeedSidebar({ postsCount = 0 }: Props) {
   const pathname = usePathname();
-  const { data: session } = useSession();
+  const { data: session, isPending: sessionLoading } = useSession();
 
   const username = (session?.user as any)?.username;
   const avatar   = session?.user?.image || (session?.user as any)?.avatar;
@@ -109,7 +110,23 @@ export function FeedSidebar({ postsCount = 0 }: Props) {
         </div>
 
         {/* ── User Card ───────────────────────────────── */}
-        {session?.user && (
+        {sessionLoading ? (
+          <div className="mt-4">
+            <div className="rounded-2xl border border-border bg-card p-3.5 shadow-sm">
+              <div className="flex items-center gap-3">
+                <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+                <div className="flex-1 space-y-1.5">
+                  <Skeleton className="h-3.5 w-24" />
+                  <Skeleton className="h-3 w-16" />
+                </div>
+                <div className="text-right space-y-1">
+                  <Skeleton className="h-4 w-6 ml-auto" />
+                  <Skeleton className="h-2.5 w-8 ml-auto" />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : session?.user && (
           <div className="mt-4">
             <Link
               href={username ? `/${username}` : "/profile"}

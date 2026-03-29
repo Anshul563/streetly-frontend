@@ -27,6 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 
 type UserProfile = {
@@ -216,10 +217,67 @@ export default function UserProfilePage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4 text-muted-foreground">
-          <Loader2 className="w-10 h-10 animate-spin text-primary" />
-          <p className="text-sm">Loading profile...</p>
+      <div className="min-h-screen bg-background text-foreground">
+        {/* Top Bar */}
+        <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3 flex items-center gap-3">
+          <Skeleton className="w-9 h-9 rounded-lg shrink-0" />
+          <Skeleton className="w-9 h-9 rounded-lg ml-auto" />
+        </div>
+
+        <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+          {/* Avatar + Stats */}
+          <div className="flex items-start gap-5">
+            <Skeleton className="w-20 h-20 md:w-24 md:h-24 rounded-full shrink-0" />
+            <div className="flex-1 flex flex-col gap-4 mt-1">
+              <div className="flex gap-6">
+                <div className="space-y-1 text-center">
+                  <Skeleton className="h-6 w-8 mx-auto" />
+                  <Skeleton className="h-3 w-10 mx-auto" />
+                </div>
+                <div className="space-y-1 text-center">
+                  <Skeleton className="h-6 w-8 mx-auto" />
+                  <Skeleton className="h-3 w-14 mx-auto" />
+                </div>
+                <div className="space-y-1 text-center">
+                  <Skeleton className="h-6 w-8 mx-auto" />
+                  <Skeleton className="h-3 w-14 mx-auto" />
+                </div>
+              </div>
+              <Skeleton className="h-8 w-28 rounded-md" />
+            </div>
+          </div>
+
+          {/* Name + bio */}
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-36" />
+            <Skeleton className="h-3 w-24" />
+            <Skeleton className="h-3 w-full" />
+            <Skeleton className="h-3 w-5/6" />
+          </div>
+
+          <Separator />
+
+          {/* Quick stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-16 rounded-xl" />
+          </div>
+
+          {/* Tab bar skeleton */}
+          <Skeleton className="h-10 rounded-xl w-full" />
+
+          {/* Post grid */}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl overflow-hidden border border-border bg-card">
+                <Skeleton className="aspect-square w-full" />
+                <div className="p-3 space-y-2">
+                  <Skeleton className="h-3 w-full" />
+                  <Skeleton className="h-3 w-4/5" />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -262,7 +320,8 @@ export default function UserProfilePage() {
         </Button>
       </div>
 
-      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
+      <div className="max-w-2xl mx-auto px-4 py-6 space-y-6 mb-16 md:mb-0">
+
         {/* Profile Header */}
         <div className="space-y-5">
           {/* Avatar + Stats row */}

@@ -32,6 +32,8 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { FeedSidebar } from "@/components/FeedSidebar";
 import { RightSidebar } from "@/components/RightSidebar";
 import { NotificationDialog } from "@/components/NotificationDialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MobileHeader } from "@/components/MobileHeader";
 
 type FeedItem = {
   id: number;
@@ -321,6 +323,45 @@ function IssueCard({ item, isSupported, supportCount, onSupport, onComment }: { 
   );
 }
 
+// Skeleton card for loading state
+function FeedSkeletonCard() {
+  return (
+    <Card className="overflow-hidden shadow-md border-border bg-card">
+      {/* Author row */}
+      <div className="p-4 pb-2 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <Skeleton className="w-10 h-10 rounded-full shrink-0" />
+          <div className="space-y-1.5">
+            <Skeleton className="h-3.5 w-28" />
+            <Skeleton className="h-3 w-20" />
+          </div>
+        </div>
+        <Skeleton className="w-8 h-8 rounded-md" />
+      </div>
+
+      <CardContent className="p-4 pt-2 space-y-3">
+        {/* Text lines */}
+        <Skeleton className="h-3.5 w-full" />
+        <Skeleton className="h-3.5 w-5/6" />
+        <Skeleton className="h-3.5 w-3/4" />
+        {/* Image placeholder */}
+        <Skeleton className="w-full aspect-video rounded-xl" />
+        {/* Tags */}
+        <div className="flex gap-2">
+          <Skeleton className="h-4 w-14 rounded-full" />
+          <Skeleton className="h-4 w-16 rounded-full" />
+        </div>
+      </CardContent>
+
+      <CardFooter className="px-4 py-3 border-t border-border bg-muted/30 flex gap-1">
+        <Skeleton className="h-8 flex-1 rounded-md" />
+        <Skeleton className="h-8 flex-1 rounded-md" />
+        <Skeleton className="h-8 flex-1 rounded-md" />
+      </CardFooter>
+    </Card>
+  );
+}
+
 export default function FeedPage() {
   const { data: session } = useSession();
   const [items, setItems] = useState<FeedItem[]>([]);
@@ -450,24 +491,9 @@ export default function FeedPage() {
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center">
       {/* Top Navbar for Mobile */}
-      <div className="md:hidden bg-card border-b border-border shadow-sm p-4 flex justify-between items-center w-full sticky top-0 z-10">
-        <h1 className="text-xl font-bold tracking-tight text-primary">🚧 Streetly</h1>
-        <div className="flex gap-2 items-center">
-          <NotificationDialog>
-            <Button variant="ghost" size="sm">
-              <Bell className="w-5 h-5 text-foreground" />
-            </Button>
-          </NotificationDialog>
-          <ThemeToggle />
-          <Button variant="ghost" size="sm" asChild>
-            <a href="/issue/create">
-              <PlusSquare className="w-5 h-5 text-foreground" />
-            </a>
-          </Button>
-        </div>
-      </div>
+      <MobileHeader />
 
-      <div className="max-w-7xl w-full grid grid-cols-1 md:grid-cols-4 gap-6 px-4 md:px-6 lg:px-8 py-6 md:py-8 items-start">
+      <div className="max-w-7xl w-full grid grid-cols-1 md:grid-cols-4 gap-4 md:gap-6 px-4 md:px-6 lg:px-8 py-4 md:py-8 items-start mb-16 md:mb-0">
         {/* Left Sidebar */}
         <FeedSidebar postsCount={userPostsCount} />
 
@@ -494,9 +520,10 @@ export default function FeedPage() {
           </div>
 
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20 text-muted-foreground">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-4" />
-              <p>Loading feed...</p>
+            <div className="space-y-6 flex flex-col">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <FeedSkeletonCard key={i} />
+              ))}
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="bg-card text-card-foreground border border-border rounded-xl p-10 text-center shadow-sm">
@@ -540,7 +567,7 @@ export default function FeedPage() {
         </div>
 
         {/* Right Sidebar */}
-        <RightSidebar trending={trending} topUsers={topUsers} />
+        <RightSidebar trending={trending} topUsers={topUsers} loading={loading} />
       </div>
     </div>
   );

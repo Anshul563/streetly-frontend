@@ -45,7 +45,7 @@ export default function RegisterPage() {
   const handleGoogleRegister = async () => {
     await signIn.social({
       provider: "google",
-      callbackURL: "http://localhost:3000/feed"
+      callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/feed`
     });
   };
 

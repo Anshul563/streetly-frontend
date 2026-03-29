@@ -5,7 +5,7 @@ let socket: Socket | null = null;
 export const connectSocket = () => {
   if (socket && socket.connected) return socket;
 
-  socket = io("https://streetly-backend.onrender.com", {
+  socket = io(process.env.NEXT_PUBLIC_BACKEND_URL, {
     autoConnect: true,
     withCredentials: true,
   });

@@ -1,6 +1,6 @@
 import axios from "axios"
 
 export const API = axios.create({
-    baseURL: "https://streetly-backend.onrender.com/api",
+    baseURL: `${process.env.NEXT_PUBLIC_BACKEND_URL}/api`,
     withCredentials: true
-})
+})
