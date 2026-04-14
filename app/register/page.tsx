@@ -5,7 +5,14 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+  CardFooter,
+} from "@/components/ui/card";
 import { FcGoogle } from "react-icons/fc";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -36,7 +43,9 @@ export default function RegisterPage() {
       toast.success("Account created successfully 🎉");
       window.location.href = "/login";
     } catch (err: any) {
-      toast.error(err.message || err.response?.data?.message || "Registration failed");
+      toast.error(
+        err.message || err.response?.data?.message || "Registration failed",
+      );
     } finally {
       setLoading(false);
     }
@@ -45,14 +54,19 @@ export default function RegisterPage() {
   const handleGoogleRegister = async () => {
     await signIn.social({
       provider: "google",
-      callbackURL: `${process.env.NEXT_PUBLIC_FRONTEND_URL}/feed`
+      callbackURL: `${window.location.origin}/feed`,
     });
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-muted/30 px-4 py-12 relative">
       <div className="absolute top-4 left-4 sm:top-8 sm:left-8 flex items-center gap-4">
-        <Button variant="ghost" size="sm" asChild className="text-muted-foreground hover:text-foreground">
+        <Button
+          variant="ghost"
+          size="sm"
+          asChild
+          className="text-muted-foreground hover:text-foreground"
+        >
           <Link href="/">
             <ArrowLeft className="w-4 h-4 mr-2" /> Back to Home
           </Link>
@@ -114,13 +128,20 @@ export default function RegisterPage() {
                 required
                 className="py-5"
               />
-              <p className="text-xs text-muted-foreground mt-1 text-right">Must be at least 8 characters</p>
+              <p className="text-xs text-muted-foreground mt-1 text-right">
+                Must be at least 8 characters
+              </p>
             </div>
 
-            <Button type="submit" className="w-full py-6 mt-4" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full py-6 mt-4"
+              disabled={loading}
+            >
               {loading ? (
                 <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating account...
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Creating
+                  account...
                 </>
               ) : (
                 "Create account"
@@ -133,7 +154,9 @@ export default function RegisterPage() {
               <span className="w-full border-t border-border" />
             </div>
             <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
+              <span className="bg-card px-2 text-muted-foreground">
+                Or continue with
+              </span>
             </div>
           </div>
 
@@ -151,7 +174,10 @@ export default function RegisterPage() {
         <CardFooter className="flex justify-center border-t border-border pt-6 pb-6">
           <p className="text-sm text-muted-foreground">
             Already have an account?{" "}
-            <Link href="/login" className="text-primary font-semibold hover:underline">
+            <Link
+              href="/login"
+              className="text-primary font-semibold hover:underline"
+            >
               Log in
             </Link>
           </p>
