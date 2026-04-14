@@ -21,11 +21,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-import {
-  Card,
-  CardContent,
-  CardFooter,
-} from "@/components/ui/card";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -34,6 +30,7 @@ import { RightSidebar } from "@/components/RightSidebar";
 import { NotificationDialog } from "@/components/NotificationDialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileHeader } from "@/components/MobileHeader";
+import { createSlug } from "@/lib/utils";
 
 type FeedItem = {
   id: number;
@@ -108,19 +105,34 @@ function ImageCarousel({ images }: { images: string[] }) {
 }
 
 // Post card component
-function PostCard({ item, isLiked, likeCount, onLike, onComment }: { item: FeedItem; isLiked: boolean; likeCount: number; onLike: () => Promise<void>; onComment: () => void; }) {
+function PostCard({
+  item,
+  isLiked,
+  likeCount,
+  onLike,
+  onComment,
+}: {
+  item: FeedItem;
+  isLiked: boolean;
+  likeCount: number;
+  onLike: () => Promise<void>;
+  onComment: () => void;
+}) {
   const images =
     item.images && item.images.length > 0
       ? item.images
       : item.imageUrl
-      ? [item.imageUrl]
-      : [];
+        ? [item.imageUrl]
+        : [];
 
   return (
     <Card className="overflow-hidden shadow-md border-border bg-card hover:border-primary/20 transition-colors">
       {/* Author Row */}
       <div className="p-4 pb-2 flex items-center justify-between">
-        <Link href={item.user?.username ? `/${item.user.username}` : "#"} className="flex items-center gap-3 group">
+        <Link
+          href={item.user?.username ? `/${item.user.username}` : "#"}
+          className="flex items-center gap-3 group"
+        >
           <div className="w-10 h-10 bg-primary/10 text-primary font-bold rounded-full flex items-center justify-center shrink-0 border border-primary/20 overflow-hidden">
             {item.user?.image || item.user?.avatar ? (
               <img
@@ -144,22 +156,32 @@ function PostCard({ item, isLiked, likeCount, onLike, onComment }: { item: FeedI
                 </>
               )}
               <span>
-                {new Date(item.createdAt || Date.now()).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
+                {new Date(item.createdAt || Date.now()).toLocaleDateString(
+                  "en-US",
+                  {
+                    month: "short",
+                    day: "numeric",
+                  },
+                )}
               </span>
             </div>
           </div>
         </Link>
-        <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="text-muted-foreground hover:text-foreground"
+        >
           <MoreHorizontal className="w-5 h-5" />
         </Button>
       </div>
 
       <CardContent className="p-4 pt-2">
         {/* Caption — clickable to detail page */}
-        <Link href={`/post/${item.id}`} className="block mb-4 group">
+        <Link
+          href={`/post/${createSlug(item.title)}-${item.id}`}
+          className="block mb-4 group"
+        >
           <p className="text-foreground text-sm leading-relaxed whitespace-pre-wrap group-hover:text-primary/90 transition-colors line-clamp-4 cursor-pointer">
             {item.description}
           </p>
@@ -191,7 +213,9 @@ function PostCard({ item, isLiked, likeCount, onLike, onComment }: { item: FeedI
           onClick={onLike}
         >
           <Heart className="w-4 h-4" />
-          <span className="text-sm">{isLiked ? "Liked" : "Like"} ({likeCount})</span>
+          <span className="text-sm">
+            {isLiked ? "Liked" : "Like"} ({likeCount})
+          </span>
         </Button>
         <Button
           variant="ghost"
@@ -201,7 +225,10 @@ function PostCard({ item, isLiked, likeCount, onLike, onComment }: { item: FeedI
           <MessageCircle className="w-4 h-4" />
           <span className="text-sm">Comment</span>
         </Button>
-        <Button variant="ghost" className="flex-1 gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5">
+        <Button
+          variant="ghost"
+          className="flex-1 gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5"
+        >
           <Share2 className="w-4 h-4" />
           <span className="text-sm">Share</span>
         </Button>
@@ -211,11 +238,26 @@ function PostCard({ item, isLiked, likeCount, onLike, onComment }: { item: FeedI
 }
 
 // Issue card component
-function IssueCard({ item, isSupported, supportCount, onSupport, onComment }: { item: FeedItem; isSupported: boolean; supportCount: number; onSupport: () => Promise<void>; onComment: () => void; }) {
+function IssueCard({
+  item,
+  isSupported,
+  supportCount,
+  onSupport,
+  onComment,
+}: {
+  item: FeedItem;
+  isSupported: boolean;
+  supportCount: number;
+  onSupport: () => Promise<void>;
+  onComment: () => void;
+}) {
   return (
     <Card className="overflow-hidden shadow-md border-border bg-card hover:border-destructive/20 transition-colors">
       <div className="p-4 pb-2 flex items-center justify-between">
-        <Link href={item.user?.username ? `/${item.user.username}` : "#"} className="flex items-center gap-3 group">
+        <Link
+          href={item.user?.username ? `/${item.user.username}` : "#"}
+          className="flex items-center gap-3 group"
+        >
           <div className="w-10 h-10 bg-destructive/10 text-destructive font-bold rounded-full flex items-center justify-center shrink-0 border border-destructive/20 overflow-hidden">
             {item.user?.image || item.user?.avatar ? (
               <img
@@ -240,32 +282,44 @@ function IssueCard({ item, isSupported, supportCount, onSupport, onComment }: { 
                 </>
               )}
               <span>
-                {new Date(item.createdAt || Date.now()).toLocaleDateString("en-US", {
-                  month: "short",
-                  day: "numeric",
-                })}
+                {new Date(item.createdAt || Date.now()).toLocaleDateString(
+                  "en-US",
+                  {
+                    month: "short",
+                    day: "numeric",
+                  },
+                )}
               </span>
             </div>
           </div>
         </Link>
         <div className="flex items-center gap-2">
-          <Badge variant="outline" className="text-destructive border-destructive/40 bg-destructive/5 text-[10px] gap-1">
+          <Badge
+            variant="outline"
+            className="text-destructive border-destructive/40 bg-destructive/5 text-[10px] gap-1"
+          >
             <AlertCircle className="w-2.5 h-2.5" />
             Issue
           </Badge>
-          <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground hover:text-foreground"
+          >
             <MoreHorizontal className="w-5 h-5" />
           </Button>
         </div>
       </div>
 
       <CardContent className="p-4 pt-2">
-        <Link href={`/post/${item.id}`}>
+        <Link href={`/post/${createSlug(item.title)}-${item.id}`}>
           <h3 className="text-lg font-semibold text-foreground mb-2 leading-tight hover:text-primary transition-colors cursor-pointer">
             {item.title}
           </h3>
         </Link>
-        <p className="text-muted-foreground text-sm leading-relaxed mb-4">{item.description}</p>
+        <p className="text-muted-foreground text-sm leading-relaxed mb-4">
+          {item.description}
+        </p>
 
         {item.imageUrl && item.imageUrl.trim() !== "" && (
           <div className="w-full aspect-video md:aspect-16/10 bg-muted rounded-xl overflow-hidden border border-border/50 mb-4 shadow-sm">
@@ -288,8 +342,8 @@ function IssueCard({ item, isSupported, supportCount, onSupport, onComment }: { 
               item.status === "unsolved"
                 ? "bg-destructive/10 text-destructive border-transparent"
                 : item.status === "working"
-                ? "bg-amber-500/10 text-amber-500 border-transparent"
-                : "bg-emerald-500/10 text-emerald-500 border-transparent"
+                  ? "bg-amber-500/10 text-amber-500 border-transparent"
+                  : "bg-emerald-500/10 text-emerald-500 border-transparent"
             }`}
           >
             {item.status}
@@ -304,7 +358,9 @@ function IssueCard({ item, isSupported, supportCount, onSupport, onComment }: { 
           onClick={onSupport}
         >
           <Heart className="w-4 h-4" />
-          <span className="text-sm">{isSupported ? "Supported" : "Support"} ({supportCount})</span>
+          <span className="text-sm">
+            {isSupported ? "Supported" : "Support"} ({supportCount})
+          </span>
         </Button>
         <Button
           variant="ghost"
@@ -314,7 +370,10 @@ function IssueCard({ item, isSupported, supportCount, onSupport, onComment }: { 
           <MessageCircle className="w-4 h-4" />
           <span className="text-sm">Comment</span>
         </Button>
-        <Button variant="ghost" className="flex-1 gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5">
+        <Button
+          variant="ghost"
+          className="flex-1 gap-2 text-muted-foreground hover:text-primary hover:bg-primary/5"
+        >
           <Share2 className="w-4 h-4" />
           <span className="text-sm">Share</span>
         </Button>
@@ -371,16 +430,18 @@ export default function FeedPage() {
   const [filter, setFilter] = useState<"all" | "post" | "issue">("all");
 
   const [likedItems, setLikedItems] = useState<Record<number, boolean>>({});
-  const [supportedItems, setSupportedItems] = useState<Record<number, boolean>>({});
+  const [supportedItems, setSupportedItems] = useState<Record<number, boolean>>(
+    {},
+  );
   const [likeCount, setLikeCount] = useState<Record<number, number>>({});
   const [supportCount, setSupportCount] = useState<Record<number, number>>({});
 
   const userReportsCount = items.filter(
-    (item) => item.userId === session?.user?.id && item.type !== "post"
+    (item) => item.userId === session?.user?.id && item.type !== "post",
   ).length;
 
   const userPostsCount = items.filter(
-    (item) => item.userId === session?.user?.id
+    (item) => item.userId === session?.user?.id,
   ).length;
 
   useEffect(() => {
@@ -401,7 +462,9 @@ export default function FeedPage() {
         API.get("/issues/trending"),
         API.get("/issues/top-contributors"),
       ]);
-      const sorted = issuesRes.data.sort((a: FeedItem, b: FeedItem) => b.id - a.id);
+      const sorted = issuesRes.data.sort(
+        (a: FeedItem, b: FeedItem) => b.id - a.id,
+      );
       setItems(sorted);
       setTrending(trendingRes.data);
       setTopUsers(topUsersRes.data);
@@ -447,11 +510,17 @@ export default function FeedPage() {
       if (likedItems[item.id]) {
         await unlikeTarget(item.id, "issue");
         setLikedItems((prev) => ({ ...prev, [item.id]: false }));
-        setLikeCount((prev) => ({ ...prev, [item.id]: Math.max((prev[item.id] || 1) - 1, 0) }));
+        setLikeCount((prev) => ({
+          ...prev,
+          [item.id]: Math.max((prev[item.id] || 1) - 1, 0),
+        }));
       } else {
         await likeTarget(item.id, "issue");
         setLikedItems((prev) => ({ ...prev, [item.id]: true }));
-        setLikeCount((prev) => ({ ...prev, [item.id]: (prev[item.id] || 0) + 1 }));
+        setLikeCount((prev) => ({
+          ...prev,
+          [item.id]: (prev[item.id] || 0) + 1,
+        }));
       }
     } catch (err) {
       console.error(err);
@@ -478,7 +547,7 @@ export default function FeedPage() {
   };
 
   const handleCommentClick = (item: FeedItem) => {
-    window.location.href = `/post/${item.id}`;
+    window.location.href = `/post/${createSlug(item.title)}-${item.id}`;
   };
 
   const filteredItems = items.filter((item) => {
@@ -510,7 +579,9 @@ export default function FeedPage() {
                   variant={filter === f ? "secondary" : "ghost"}
                   size="sm"
                   className={`rounded-full capitalize text-sm ${
-                    filter === f ? "" : "text-muted-foreground hover:text-foreground"
+                    filter === f
+                      ? ""
+                      : "text-muted-foreground hover:text-foreground"
                   }`}
                 >
                   {f === "all" ? "All" : f === "post" ? "Posts" : "Issues"}
@@ -532,10 +603,13 @@ export default function FeedPage() {
                 {filter === "post"
                   ? "No posts yet. Be the first to share one!"
                   : filter === "issue"
-                  ? "No issues reported. Help your community!"
-                  : "The feed is empty. Be the first to post!"}
+                    ? "No issues reported. Help your community!"
+                    : "The feed is empty. Be the first to post!"}
               </p>
-              <Button asChild className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button
+                asChild
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
                 <a href="/issue/create">Create Something</a>
               </Button>
             </div>
@@ -560,14 +634,18 @@ export default function FeedPage() {
                     onSupport={() => handleSupportToggle(item)}
                     onComment={() => handleCommentClick(item)}
                   />
-                )
+                ),
               )}
             </div>
           )}
         </div>
 
         {/* Right Sidebar */}
-        <RightSidebar trending={trending} topUsers={topUsers} loading={loading} />
+        <RightSidebar
+          trending={trending}
+          topUsers={topUsers}
+          loading={loading}
+        />
       </div>
     </div>
   );

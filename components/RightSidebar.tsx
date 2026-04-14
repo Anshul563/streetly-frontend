@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
+import { createSlug } from "@/lib/utils";
 
 type TrendingItem = {
   id: number;
@@ -36,7 +37,6 @@ type Props = {
 export function RightSidebar({ trending, topUsers, loading = false }: Props) {
   return (
     <aside className="hidden lg:flex flex-col gap-5 sticky top-8">
-
       {/* ── Trending ───────────────────────────────────── */}
       <div className="rounded-2xl border border-border bg-card shadow-sm overflow-hidden">
         {/* Header */}
@@ -44,7 +44,9 @@ export function RightSidebar({ trending, topUsers, loading = false }: Props) {
           <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center">
             <TrendingUp className="w-3.5 h-3.5 text-primary" />
           </div>
-          <span className="font-semibold text-sm text-foreground">Trending Near You</span>
+          <span className="font-semibold text-sm text-foreground">
+            Trending Near You
+          </span>
         </div>
 
         {/* Items */}
@@ -62,12 +64,14 @@ export function RightSidebar({ trending, topUsers, loading = false }: Props) {
           ) : (
             <>
               {trending.length === 0 && (
-                <p className="px-5 py-4 text-xs text-muted-foreground">Nothing trending yet.</p>
+                <p className="px-5 py-4 text-xs text-muted-foreground">
+                  Nothing trending yet.
+                </p>
               )}
               {trending.map((item, i) => (
                 <Link
                   key={item.id}
-                  href={`/post/${item.id}`}
+                  href={`/post/${createSlug(item.title)}-${item.id}`}
                   className="group flex items-start gap-3 px-5 py-3.5 hover:bg-accent/40 transition-colors"
                 >
                   <span className="text-xl font-black text-muted-foreground/20 leading-none mt-0.5 w-6 tabular-nums shrink-0">
@@ -114,7 +118,9 @@ export function RightSidebar({ trending, topUsers, loading = false }: Props) {
             <Sparkles className="w-3.5 h-3.5 text-amber-500" />
           </div>
           <div>
-            <span className="font-semibold text-sm text-foreground">Top Contributors</span>
+            <span className="font-semibold text-sm text-foreground">
+              Top Contributors
+            </span>
           </div>
         </div>
 
@@ -134,7 +140,9 @@ export function RightSidebar({ trending, topUsers, loading = false }: Props) {
           ) : (
             <>
               {topUsers.length === 0 && (
-                <p className="px-5 py-4 text-xs text-muted-foreground">No contributors yet.</p>
+                <p className="px-5 py-4 text-xs text-muted-foreground">
+                  No contributors yet.
+                </p>
               )}
               {topUsers.map((user, i) => {
                 const av = user.image || user.avatar;
@@ -144,15 +152,21 @@ export function RightSidebar({ trending, topUsers, loading = false }: Props) {
                     className="group flex items-center gap-3 px-5 py-3 hover:bg-accent/40 transition-colors"
                   >
                     {/* Rank badge */}
-                    <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0
-                      ${i === 0 ? "bg-amber-400/20 text-amber-500" : i === 1 ? "bg-zinc-400/20 text-zinc-400" : i === 2 ? "bg-orange-700/20 text-orange-700" : "bg-muted text-muted-foreground"}`}>
+                    <span
+                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0
+                      ${i === 0 ? "bg-amber-400/20 text-amber-500" : i === 1 ? "bg-zinc-400/20 text-zinc-400" : i === 2 ? "bg-orange-700/20 text-orange-700" : "bg-muted text-muted-foreground"}`}
+                    >
                       {i + 1}
                     </span>
 
                     {/* Avatar */}
                     <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-border/60 bg-secondary">
                       {av ? (
-                        <img src={av} alt={user.name} className="w-full h-full object-cover" />
+                        <img
+                          src={av}
+                          alt={user.name}
+                          className="w-full h-full object-cover"
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center text-xs font-bold text-muted-foreground">
                           {(user.name || "?").charAt(0).toUpperCase()}
@@ -187,11 +201,21 @@ export function RightSidebar({ trending, topUsers, loading = false }: Props) {
 
       {/* ── Footer ─────────────────────────────────────── */}
       <div className="text-[11px] text-muted-foreground/50 px-1 leading-relaxed">
-        <p>© 2026 Streetly · <span className="text-muted-foreground/70">better-auth</span> & <span className="text-muted-foreground/70">Drizzle</span></p>
+        <p>
+          © 2026 Streetly ·{" "}
+          <span className="text-muted-foreground/70">better-auth</span> &{" "}
+          <span className="text-muted-foreground/70">Drizzle</span>
+        </p>
         <div className="flex gap-3 mt-1">
-          <a href="#" className="hover:text-muted-foreground transition-colors">Privacy</a>
-          <a href="#" className="hover:text-muted-foreground transition-colors">Terms</a>
-          <a href="#" className="hover:text-muted-foreground transition-colors">About</a>
+          <a href="#" className="hover:text-muted-foreground transition-colors">
+            Privacy
+          </a>
+          <a href="#" className="hover:text-muted-foreground transition-colors">
+            Terms
+          </a>
+          <a href="#" className="hover:text-muted-foreground transition-colors">
+            About
+          </a>
         </div>
       </div>
     </aside>

@@ -29,6 +29,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { createSlug } from "@/lib/utils";
 
 type UserProfile = {
   id: number;
@@ -72,13 +73,19 @@ function MiniCarousel({ images }: { images: string[] }) {
       {images.length > 1 && (
         <>
           <button
-            onClick={(e) => { e.preventDefault(); setCurrent((c) => (c - 1 + images.length) % images.length); }}
+            onClick={(e) => {
+              e.preventDefault();
+              setCurrent((c) => (c - 1 + images.length) % images.length);
+            }}
             className="absolute left-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <ChevronLeft className="w-3 h-3" />
           </button>
           <button
-            onClick={(e) => { e.preventDefault(); setCurrent((c) => (c + 1) % images.length); }}
+            onClick={(e) => {
+              e.preventDefault();
+              setCurrent((c) => (c + 1) % images.length);
+            }}
             className="absolute right-1 top-1/2 -translate-y-1/2 bg-black/50 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
           >
             <ChevronRight className="w-3 h-3" />
@@ -95,10 +102,15 @@ function MiniCarousel({ images }: { images: string[] }) {
 
 function PostCard({ post }: { post: Post }) {
   const isPost = post.type === "post";
-  const images = post.images && post.images.length > 0 ? post.images : post.imageUrl ? [post.imageUrl] : [];
+  const images =
+    post.images && post.images.length > 0
+      ? post.images
+      : post.imageUrl
+        ? [post.imageUrl]
+        : [];
 
   return (
-    <Link href={`/post/${post.id}`}>
+    <Link href={`/post/${createSlug(post.title)}-${post.id}`}>
       <Card className="overflow-hidden shadow-sm border-border bg-card hover:border-primary/30 hover:shadow-md transition-all cursor-pointer">
         {images.length > 0 ? (
           <MiniCarousel images={images} />
@@ -113,7 +125,9 @@ function PostCard({ post }: { post: Post }) {
         )}
         <CardContent className="p-3">
           {!isPost && (
-            <p className="text-xs font-semibold text-foreground line-clamp-1 mb-1">{post.title}</p>
+            <p className="text-xs font-semibold text-foreground line-clamp-1 mb-1">
+              {post.title}
+            </p>
           )}
           <p className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">
             {post.description}
@@ -121,24 +135,44 @@ function PostCard({ post }: { post: Post }) {
           {post.tags && post.tags.length > 0 && (
             <div className="flex gap-1 mt-1.5 flex-wrap">
               {post.tags.slice(0, 2).map((t) => (
-                <span key={t} className="text-[10px] text-primary font-medium">#{t}</span>
+                <span key={t} className="text-[10px] text-primary font-medium">
+                  #{t}
+                </span>
               ))}
             </div>
           )}
         </CardContent>
         <CardFooter className="px-3 py-2 border-t border-border/50 flex items-center gap-2">
           {isPost ? (
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">Post</Badge>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+              Post
+            </Badge>
           ) : (
-            <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 text-destructive border-destructive/30 bg-destructive/5">Issue</Badge>
+            <Badge
+              variant="outline"
+              className="text-[10px] px-1.5 py-0 h-4 text-destructive border-destructive/30 bg-destructive/5"
+            >
+              Issue
+            </Badge>
           )}
           {!isPost && post.status && (
-            <span className={`text-[10px] font-medium ${
-              post.status === "unsolved" ? "text-destructive" : post.status === "working" ? "text-amber-500" : "text-emerald-500"
-            }`}>{post.status}</span>
+            <span
+              className={`text-[10px] font-medium ${
+                post.status === "unsolved"
+                  ? "text-destructive"
+                  : post.status === "working"
+                    ? "text-amber-500"
+                    : "text-emerald-500"
+              }`}
+            >
+              {post.status}
+            </span>
           )}
           <span className="ml-auto text-[10px] text-muted-foreground">
-            {new Date(post.createdAt || Date.now()).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+            {new Date(post.createdAt || Date.now()).toLocaleDateString(
+              "en-US",
+              { month: "short", day: "numeric" },
+            )}
           </span>
         </CardFooter>
       </Card>
@@ -158,7 +192,8 @@ export default function UserProfilePage() {
   const [followLoading, setFollowLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "posts" | "issues">("all");
 
-  const isOwnProfile = session?.user && (session.user as any).username === username;
+  const isOwnProfile =
+    session?.user && (session.user as any).username === username;
 
   useEffect(() => {
     if (username) fetchProfile();
@@ -200,12 +235,16 @@ export default function UserProfilePage() {
       if (isFollowing) {
         await API.delete(`/follow/${profile.id}`);
         setIsFollowing(false);
-        setProfile((p) => p ? { ...p, followersCount: p.followersCount - 1 } : p);
+        setProfile((p) =>
+          p ? { ...p, followersCount: p.followersCount - 1 } : p,
+        );
         toast.success(`Unfollowed @${profile.username}`);
       } else {
         await API.post(`/follow/${profile.id}`, {});
         setIsFollowing(true);
-        setProfile((p) => p ? { ...p, followersCount: p.followersCount + 1 } : p);
+        setProfile((p) =>
+          p ? { ...p, followersCount: p.followersCount + 1 } : p,
+        );
         toast.success(`Now following @${profile.username}!`);
       }
     } catch (err: any) {
@@ -269,7 +308,10 @@ export default function UserProfilePage() {
           {/* Post grid */}
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="rounded-xl overflow-hidden border border-border bg-card">
+              <div
+                key={i}
+                className="rounded-xl overflow-hidden border border-border bg-card"
+              >
                 <Skeleton className="aspect-square w-full" />
                 <div className="p-3 space-y-2">
                   <Skeleton className="h-3 w-full" />
@@ -288,9 +330,13 @@ export default function UserProfilePage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
-          <h2 className="text-xl font-semibold text-foreground">User not found</h2>
+          <h2 className="text-xl font-semibold text-foreground">
+            User not found
+          </h2>
           <p className="text-muted-foreground">{error}</p>
-          <Button asChild><Link href="/feed">Back to Feed</Link></Button>
+          <Button asChild>
+            <Link href="/feed">Back to Feed</Link>
+          </Button>
         </div>
       </div>
     );
@@ -311,24 +357,32 @@ export default function UserProfilePage() {
     <div className="min-h-screen bg-background text-foreground">
       {/* Top Bar */}
       <div className="sticky top-0 z-10 bg-background/80 backdrop-blur-md border-b justify-between border-border px-4 py-3 flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={() => router.back()} className="shrink-0">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => router.back()}
+          className="shrink-0"
+        >
           <ArrowLeft className="w-5 h-5" />
         </Button>
-       
+
         <Button variant="ghost" size="icon" className="text-muted-foreground">
           <MoreHorizontal className="w-5 h-5" />
         </Button>
       </div>
 
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6 mb-16 md:mb-0">
-
         {/* Profile Header */}
         <div className="space-y-5">
           {/* Avatar + Stats row */}
           <div className="flex items-start gap-5">
             <div className="w-20 h-20 md:w-24 md:h-24 rounded-full overflow-hidden flex items-center justify-center text-2xl font-bold shrink-0 border-2 border-primary/20 bg-primary/10 text-primary">
               {avatar ? (
-                <img src={avatar} alt={profile.name} className="w-full h-full object-cover" />
+                <img
+                  src={avatar}
+                  alt={profile.name}
+                  className="w-full h-full object-cover"
+                />
               ) : (
                 (profile.name || "A").charAt(0).toUpperCase()
               )}
@@ -338,22 +392,37 @@ export default function UserProfilePage() {
             <div className="flex-1 flex flex-col gap-3">
               <div className="flex gap-4 md:gap-8">
                 <div className="text-center">
-                  <p className="text-xl font-bold text-foreground leading-tight">{profile.posts.length}</p>
+                  <p className="text-xl font-bold text-foreground leading-tight">
+                    {profile.posts.length}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-0.5">Posts</p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-bold text-foreground leading-tight">{profile.followersCount}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Followers</p>
+                  <p className="text-xl font-bold text-foreground leading-tight">
+                    {profile.followersCount}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Followers
+                  </p>
                 </div>
                 <div className="text-center">
-                  <p className="text-xl font-bold text-foreground leading-tight">{profile.followingCount}</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">Following</p>
+                  <p className="text-xl font-bold text-foreground leading-tight">
+                    {profile.followingCount}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Following
+                  </p>
                 </div>
               </div>
 
               {/* Follow / Edit button */}
               {isOwnProfile ? (
-                <Button variant="outline" size="sm" className="w-full md:w-auto" asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full md:w-auto"
+                  asChild
+                >
                   <Link href="/profile">Edit Profile</Link>
                 </Button>
               ) : (
@@ -384,10 +453,14 @@ export default function UserProfilePage() {
 
           {/* Name + Bio */}
           <div>
-            <p className="font-bold text-foreground text-base">{profile.name}</p>
+            <p className="font-bold text-foreground text-base">
+              {profile.name}
+            </p>
             <p className="text-sm text-muted-foreground">@{profile.username}</p>
             {profile.bio && (
-              <p className="text-sm text-foreground mt-2 leading-relaxed whitespace-pre-wrap">{profile.bio}</p>
+              <p className="text-sm text-foreground mt-2 leading-relaxed whitespace-pre-wrap">
+                {profile.bio}
+              </p>
             )}
             {profile.role && profile.role !== "user" && (
               <Badge className="mt-2 capitalize">{profile.role}</Badge>
@@ -395,7 +468,11 @@ export default function UserProfilePage() {
             {profile.createdAt && (
               <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-2">
                 <Calendar className="w-3.5 h-3.5" />
-                Joined {new Date(profile.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                Joined{" "}
+                {new Date(profile.createdAt).toLocaleDateString("en-US", {
+                  month: "long",
+                  year: "numeric",
+                })}
               </div>
             )}
           </div>
@@ -427,7 +504,11 @@ export default function UserProfilePage() {
                   : "text-muted-foreground hover:text-foreground"
               }`}
             >
-              {tab === "all" ? `All (${profile.posts.length})` : tab === "posts" ? `Posts (${postCount})` : `Issues (${issueCount})`}
+              {tab === "all"
+                ? `All (${profile.posts.length})`
+                : tab === "posts"
+                  ? `Posts (${postCount})`
+                  : `Issues (${issueCount})`}
             </button>
           ))}
         </div>
@@ -436,7 +517,9 @@ export default function UserProfilePage() {
         {filteredPosts.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
             <Grid3X3 className="w-12 h-12 mx-auto mb-3 opacity-30" />
-            <p className="text-sm">No {activeTab === "all" ? "content" : activeTab} yet</p>
+            <p className="text-sm">
+              No {activeTab === "all" ? "content" : activeTab} yet
+            </p>
           </div>
         ) : (
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">

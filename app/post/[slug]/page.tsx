@@ -4,7 +4,13 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { API } from "@/lib/api";
 import { connectSocket } from "@/lib/socket";
-import { likeTarget, unlikeTarget, supportTarget, getComments, addComment } from "@/lib/social";
+import {
+  likeTarget,
+  unlikeTarget,
+  supportTarget,
+  getComments,
+  addComment,
+} from "@/lib/social";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -89,7 +95,9 @@ function ImageCarousel({ images }: { images: string[] }) {
                 key={i}
                 onClick={() => setCurrent(i)}
                 className={`rounded-full transition-all duration-200 ${
-                  i === current ? "bg-white w-5 h-1.5" : "bg-white/50 w-1.5 h-1.5"
+                  i === current
+                    ? "bg-white w-5 h-1.5"
+                    : "bg-white/50 w-1.5 h-1.5"
                 }`}
               />
             ))}
@@ -106,7 +114,8 @@ function ImageCarousel({ images }: { images: string[] }) {
 }
 
 export default function PostDetailPage() {
-  const { postId } = useParams<{ postId: string }>();
+  const { slug } = useParams<{ slug: string }>();
+  const postId = slug ? slug.split("-").pop() : "";
   const router = useRouter();
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -122,9 +131,12 @@ export default function PostDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
 
   useEffect(() => {
-    if (postId) {
+    if (postId && !isNaN(Number(postId))) {
       fetchPost();
       fetchComments();
+    } else if (postId) {
+      setError("Invalid post URL");
+      setLoading(false);
     }
   }, [postId]);
 
@@ -237,8 +249,8 @@ export default function PostDetailPage() {
     post?.images && post.images.length > 0
       ? post.images
       : post?.imageUrl
-      ? [post.imageUrl]
-      : [];
+        ? [post.imageUrl]
+        : [];
 
   const avatar = post?.user?.image || post?.user?.avatar;
 
@@ -289,7 +301,10 @@ export default function PostDetailPage() {
             <Skeleton className="h-12 w-full rounded-xl" />
             <div className="space-y-2 pt-2">
               {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} className="border border-border rounded-xl p-3 space-y-2">
+                <div
+                  key={i}
+                  className="border border-border rounded-xl p-3 space-y-2"
+                >
                   <div className="flex justify-between">
                     <Skeleton className="h-3.5 w-24" />
                     <Skeleton className="h-3 w-20" />
@@ -309,7 +324,9 @@ export default function PostDetailPage() {
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center space-y-4">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto" />
-          <h2 className="text-xl font-semibold text-foreground">Post not found</h2>
+          <h2 className="text-xl font-semibold text-foreground">
+            Post not found
+          </h2>
           <p className="text-muted-foreground">{error}</p>
           <Button asChild>
             <Link href="/feed">Back to Feed</Link>
@@ -342,8 +359,8 @@ export default function PostDetailPage() {
               post.status === "unsolved"
                 ? "bg-destructive/10 text-destructive border-destructive/30"
                 : post.status === "working"
-                ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                  ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                  : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
             }`}
           >
             {post.status}
@@ -365,7 +382,11 @@ export default function PostDetailPage() {
             }`}
           >
             {avatar ? (
-              <img src={avatar} alt={post.user?.name} className="w-full h-full object-cover" />
+              <img
+                src={avatar}
+                alt={post.user?.name}
+                className="w-full h-full object-cover"
+              />
             ) : (
               (post.user?.name || "A").charAt(0).toUpperCase()
             )}
@@ -375,19 +396,26 @@ export default function PostDetailPage() {
               {post.user?.name || "Anonymous"}
             </p>
             {post.user?.username && (
-              <p className="text-sm text-muted-foreground">@{post.user.username}</p>
+              <p className="text-sm text-muted-foreground">
+                @{post.user.username}
+              </p>
             )}
             {post.user?.bio && (
-              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{post.user.bio}</p>
+              <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">
+                {post.user.bio}
+              </p>
             )}
           </div>
           <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Calendar className="w-3.5 h-3.5" />
-            {new Date(post.createdAt || Date.now()).toLocaleDateString("en-US", {
-              month: "long",
-              day: "numeric",
-              year: "numeric",
-            })}
+            {new Date(post.createdAt || Date.now()).toLocaleDateString(
+              "en-US",
+              {
+                month: "long",
+                day: "numeric",
+                year: "numeric",
+              },
+            )}
           </div>
         </Link>
 
@@ -438,18 +466,28 @@ export default function PostDetailPage() {
           <>
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Badge variant="outline" className="text-destructive border-destructive/40 bg-destructive/5 gap-1">
+                <Badge
+                  variant="outline"
+                  className="text-destructive border-destructive/40 bg-destructive/5 gap-1"
+                >
                   <AlertCircle className="w-3 h-3" />
                   Issue Report
                 </Badge>
                 {post.category && (
-                  <Badge variant="secondary" className="uppercase text-xs tracking-wider">
+                  <Badge
+                    variant="secondary"
+                    className="uppercase text-xs tracking-wider"
+                  >
                     {post.category}
                   </Badge>
                 )}
               </div>
-              <h2 className="text-2xl font-bold text-foreground mb-3">{post.title}</h2>
-              <p className="text-muted-foreground leading-relaxed">{post.description}</p>
+              <h2 className="text-2xl font-bold text-foreground mb-3">
+                {post.title}
+              </h2>
+              <p className="text-muted-foreground leading-relaxed">
+                {post.description}
+              </p>
             </div>
 
             {/* Issue image */}
@@ -474,12 +512,16 @@ export default function PostDetailPage() {
                 </CardHeader>
                 <CardContent className="px-5 pb-4 space-y-1.5 text-sm">
                   {post.address && (
-                    <p className="text-foreground font-medium">{post.address}</p>
+                    <p className="text-foreground font-medium">
+                      {post.address}
+                    </p>
                   )}
                   <div className="flex flex-wrap gap-x-4 gap-y-1 text-muted-foreground">
                     {post.locality && <span>{post.locality}</span>}
                     {post.city && <span>{post.city}</span>}
-                    {post.pincode && <span className="font-mono">{post.pincode}</span>}
+                    {post.pincode && (
+                      <span className="font-mono">{post.pincode}</span>
+                    )}
                   </div>
                   {post.latitude && post.longitude && (
                     <a
@@ -503,7 +545,15 @@ export default function PostDetailPage() {
         {/* Action Bar */}
         <div className="flex gap-2">
           <Button
-            variant={isPost ? (isLiked ? "secondary" : "outline") : isSupported ? "secondary" : "outline"}
+            variant={
+              isPost
+                ? isLiked
+                  ? "secondary"
+                  : "outline"
+                : isSupported
+                  ? "secondary"
+                  : "outline"
+            }
             className={`flex-1 gap-2 text-sm ${
               isPost
                 ? "hover:text-primary hover:border-primary/40 hover:bg-primary/5"
@@ -513,7 +563,15 @@ export default function PostDetailPage() {
             disabled={actionLoading}
           >
             <Heart className="w-4 h-4" />
-            <span>{isPost ? (isLiked ? "Liked" : "Like") : isSupported ? "Supported" : "Support"}</span>
+            <span>
+              {isPost
+                ? isLiked
+                  ? "Liked"
+                  : "Like"
+                : isSupported
+                  ? "Supported"
+                  : "Support"}
+            </span>
             <span className="text-xs">{isPost ? likeCount : supportCount}</span>
           </Button>
           <Button
@@ -555,18 +613,26 @@ export default function PostDetailPage() {
           </div>
 
           {comments.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">No comments yet. Be the first to comment!</p>
+            <p className="text-xs text-muted-foreground text-center py-4">
+              No comments yet. Be the first to comment!
+            </p>
           ) : (
             <div className="space-y-2">
               {comments.map((comment) => (
                 <Card key={comment.id} className="border-border bg-card p-3">
                   <div className="flex items-center justify-between">
-                    <p className="font-semibold text-sm">{comment.user?.name || "Anonymous"}</p>
+                    <p className="font-semibold text-sm">
+                      {comment.user?.name || "Anonymous"}
+                    </p>
                     <span className="text-xs text-muted-foreground">
-                      {new Date(comment.createdAt || Date.now()).toLocaleString()}
+                      {new Date(
+                        comment.createdAt || Date.now(),
+                      ).toLocaleString()}
                     </span>
                   </div>
-                  <p className="text-sm text-foreground mt-1">{comment.content}</p>
+                  <p className="text-sm text-foreground mt-1">
+                    {comment.content}
+                  </p>
                 </Card>
               ))}
             </div>

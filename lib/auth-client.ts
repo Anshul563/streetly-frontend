@@ -4,4 +4,4 @@ export const authClient = createAuthClient({
     baseURL: process.env.NEXT_PUBLIC_BACKEND_URL // the base url of your express API
 })
 
-export const { signIn, signUp, useSession } = authClient;
+export const { signIn, signUp, signOut, useSession } = authClient;
