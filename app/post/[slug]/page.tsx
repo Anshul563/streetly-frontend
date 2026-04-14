@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { API } from "@/lib/api";
+import { useSession } from "@/lib/auth-client";
 import { connectSocket } from "@/lib/socket";
 import {
   likeTarget,
@@ -23,15 +24,26 @@ import {
   Calendar,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   ImageIcon,
   User,
   Loader2,
+  CheckCircle2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Clock } from "@phosphor-icons/react";
 
 type PostDetail = {
   id: number;
@@ -117,6 +129,7 @@ export default function PostDetailPage() {
   const { slug } = useParams<{ slug: string }>();
   const postId = slug ? slug.split("-").pop() : "";
   const router = useRouter();
+  const { data: session } = useSession();
   const [post, setPost] = useState<PostDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -244,6 +257,17 @@ export default function PostDetailPage() {
     }
   };
 
+  const updateStatus = async (newStatus: string) => {
+    if (!postId) return;
+    try {
+      await API.patch(`/issues/${postId}/status`, { status: newStatus });
+      setPost((prev) => (prev ? { ...prev, status: newStatus } : null));
+      toast.success("Status updated to " + newStatus);
+    } catch (err) {
+      toast.error("Failed to update status");
+    }
+  };
+
   const isPost = post?.type === "post";
   const images =
     post?.images && post.images.length > 0
@@ -354,17 +378,51 @@ export default function PostDetailPage() {
           </h1>
         </div>
         {!isPost && (
-          <span
-            className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
-              post.status === "unsolved"
-                ? "bg-destructive/10 text-destructive border-destructive/30"
-                : post.status === "working"
-                  ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
-                  : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
-            }`}
-          >
-            {post.status}
-          </span>
+          <div className="flex items-center">
+            {String(session?.user?.id) === String(post.userId) ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className={`h-auto text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                      post.status === "unsolved"
+                        ? "bg-destructive/10 text-destructive border-destructive/30 hover:bg-destructive/20 hover:text-destructive"
+                        : post.status === "working" ||
+                            post.status === "in-progress"
+                          ? "bg-amber-500/10 text-amber-500 border-amber-500/30 hover:bg-amber-500/20 hover:text-amber-500"
+                          : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 hover:bg-emerald-500/20 hover:text-emerald-500"
+                    }`}
+                  >
+                    {post.status}{" "}
+                    <ChevronDown className="w-3 h-3 ml-1 opacity-70" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => updateStatus("unsolved")}>
+                    <AlertCircle className="w-3 h-3 mr-2" /> Mark Unsolved
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => updateStatus("in-progress")}>
+                    <Clock className="w-3 h-3 mr-2" /> Mark In-Progress
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => updateStatus("resolved")}>
+                    <CheckCircle2 className="w-3 h-3 mr-2" /> Mark Resolved
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <span
+                className={`text-xs font-semibold px-2.5 py-1 rounded-full border ${
+                  post.status === "unsolved"
+                    ? "bg-destructive/10 text-destructive border-destructive/30"
+                    : post.status === "working" || post.status === "in-progress"
+                      ? "bg-amber-500/10 text-amber-500 border-amber-500/30"
+                      : "bg-emerald-500/10 text-emerald-500 border-emerald-500/30"
+                }`}
+              >
+                {post.status}
+              </span>
+            )}
+          </div>
         )}
       </div>
 

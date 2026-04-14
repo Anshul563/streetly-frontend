@@ -32,14 +32,6 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { signOut } from "@/lib/auth-client";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { createSlug } from "@/lib/utils";
 
@@ -65,7 +57,6 @@ export default function GovDashboard() {
   const { data: session, isPending } = useSession();
   const [issues, setIssues] = useState<FeedItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState<number | null>(null);
   const [activeTab, setActiveTab] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -97,24 +88,6 @@ export default function GovDashboard() {
       toast.error("Failed to fetch issues.");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const updateStatus = async (id: number, newStatus: string) => {
-    try {
-      setUpdating(id);
-      await API.patch(`/issues/${id}/status`, { status: newStatus });
-      toast.success("Status updated to " + newStatus);
-      setIssues(
-        issues.map((issue) =>
-          issue.id === id ? { ...issue, status: newStatus } : issue,
-        ),
-      );
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update status.");
-    } finally {
-      setUpdating(null);
     }
   };
 
@@ -466,62 +439,18 @@ export default function GovDashboard() {
                           })}
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right">
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="opacity-0 group-hover:opacity-100 transition-opacity focus:opacity-100 disabled:opacity-50"
-                              >
-                                {updating === issue.id ? (
-                                  <Clock className="w-4 h-4 animate-pulse" />
-                                ) : (
-                                  <MoreHorizontal className="w-4 h-4" />
-                                )}
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-40">
-                              <DropdownMenuLabel className="text-xs">
-                                Update Status
-                              </DropdownMenuLabel>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem
-                                className="text-xs"
-                                onClick={() =>
-                                  updateStatus(issue.id, "unsolved")
-                                }
-                              >
-                                <AlertCircle className="w-3 h-3 mr-2" /> Mark
-                                Unsolved
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-xs"
-                                onClick={() =>
-                                  updateStatus(issue.id, "in-progress")
-                                }
-                              >
-                                <Clock className="w-3 h-3 mr-2" /> Mark
-                                In-Progress
-                              </DropdownMenuItem>
-                              <DropdownMenuItem
-                                className="text-xs"
-                                onClick={() =>
-                                  updateStatus(issue.id, "resolved")
-                                }
-                              >
-                                <CheckCircle2 className="w-3 h-3 mr-2" /> Mark
-                                Resolved
-                              </DropdownMenuItem>
-                              <DropdownMenuSeparator />
-                              <DropdownMenuItem className="text-xs" asChild>
-                                <Link
-                                  href={`/post/${createSlug(issue.title)}-${issue.id}`}
-                                >
-                                  View Details
-                                </Link>
-                              </DropdownMenuItem>
-                            </DropdownMenuContent>
-                          </DropdownMenu>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            asChild
+                            className="text-muted-foreground hover:text-foreground"
+                          >
+                            <Link
+                              href={`/post/${createSlug(issue.title)}-${issue.id}`}
+                            >
+                              View Details
+                            </Link>
+                          </Button>
                         </td>
                       </tr>
                     ))
