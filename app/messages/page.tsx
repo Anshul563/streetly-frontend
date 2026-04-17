@@ -6,7 +6,7 @@ import { API } from "@/lib/api";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Send, ArrowLeft, MessageSquare } from "lucide-react";
+import { Send, ArrowLeft, MessageSquare, Reply, X as CloseIcon } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
@@ -14,6 +14,9 @@ import { ThemeToggle } from "@/components/ThemeToggle";
 import { FeedSidebar } from "@/components/FeedSidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MobileNav } from "@/components/MobileNav";
+import { CommunityChat } from "@/components/CommunityChat";
+import { CreateCommunityModal } from "@/components/CreateCommunityModal";
+import { Users, Plus } from "lucide-react";
 import {
   generateAndStoreKeyPair,
   getStoredPublicKeyJwk,
@@ -52,6 +55,7 @@ type Message = {
   senderId: number;
   content: string;
   read: boolean;
+  replyToId: number | null;
   createdAt: string;
 };
 
@@ -71,6 +75,13 @@ export default function MessagesPage() {
   const [typing, setTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const [e2eeReady, setE2eeReady] = useState(false);
+
+  // Community state
+  const [sidebarTab, setSidebarTab] = useState<"chats" | "communities">("chats");
+  const [communities, setCommunities] = useState<any[]>([]);
+  const [activeCommunityId, setActiveCommunityId] = useState<number | null>(null);
+  const [showCreateCommunity, setShowCreateCommunity] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -94,10 +105,21 @@ export default function MessagesPage() {
     initKeys();
   }, [session?.user]);
 
-  // Initial Data Fetch
+  // 1️⃣  Immediately decode any conversationId in the URL so the chat skeleton
+  //     appears right away — before fetchConversations finishes.
+  useEffect(() => {
+    const convToken = searchParams.get("conversationId");
+    if (convToken) {
+      const decoded = decodeConvId(convToken);
+      if (decoded) setActiveConvId(decoded);
+    }
+  }, []); // run once on mount
+
+  // 2️⃣  Load the conversation list after session is ready
   useEffect(() => {
     if (session?.user) {
       fetchConversations();
+      fetchCommunities();
     }
   }, [session?.user]);
 
@@ -108,7 +130,7 @@ export default function MessagesPage() {
       const convList: Conversation[] = res.data;
       setConversations(convList);
 
-      // Decrypt latest message previews for each conversation
+      // Decrypt latest message previews for each conversation in parallel
       const previews: Record<number, string> = {};
       await Promise.all(
         convList.map(async (conv) => {
@@ -126,22 +148,18 @@ export default function MessagesPage() {
         })
       );
       setDecryptedPreviews(previews);
-      
-      const convToken = searchParams.get("conversationId");
-      if (convToken) {
-        const decoded = decodeConvId(convToken);
-        if (decoded) setActiveConvId(decoded);
-      } else if (convList.length > 0 && !activeConvId) {
-        // Optionally select first conversation on desktop
-        if (window.innerWidth > 768) {
-          setActiveConvId(convList[0].id);
-        }
-      }
     } catch (err) {
       console.error(err);
     } finally {
       setLoadingConversations(false);
     }
+  };
+
+  const fetchCommunities = async () => {
+    try {
+      const res = await API.get("/communities/mine");
+      setCommunities(res.data);
+    } catch {}
   };
 
   useEffect(() => {
@@ -310,11 +328,13 @@ export default function MessagesPage() {
       senderId: session.user.id,
       receiverId,
       content,
+      replyToId: replyingTo?.id || null,
     });
     
     // Show plaintext locally immediately
     const tempId = Date.now();
     setDecryptedMessages(prev => ({ ...prev, [tempId]: plaintext }));
+    setReplyingTo(null);
 
     // update local latest message preview (store encrypted content, but keep preview decrypted)
     setConversations(prev => prev.map(c => 
@@ -343,8 +363,13 @@ export default function MessagesPage() {
       </div>
 
       {/* Main Chat Area */}
-      <div className={`flex-1 flex flex-col min-w-0 border-r border-border ${!activeConvId ? 'hidden md:flex' : 'flex'}`}>
-        {!activeConvId ? (
+      <div className={`flex-1 flex flex-col min-w-0 border-r border-border ${(!activeConvId && !activeCommunityId) ? 'hidden md:flex' : 'flex'}`}>
+        {activeCommunityId ? (
+          <CommunityChat
+            communityId={activeCommunityId}
+            onBack={() => setActiveCommunityId(null)}
+          />
+        ) : !activeConvId ? (
           <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
             <MessageSquare className="w-16 h-16 mb-4 opacity-20" />
             <p className="text-lg">Select a conversation to start chatting</p>
@@ -411,11 +436,42 @@ export default function MessagesPage() {
                       !isMe && <div className="w-8 shrink-0"></div>
                     )}
                     
-                    <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${isMe ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted text-foreground rounded-bl-sm'}`}>
-                      <p className="wrap-break-word text-sm">{decryptedMessages[msg.id] ?? msg.content}</p>
-                      <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                        {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </p>
+                    <div className={`max-w-[70%] flex flex-col ${isMe ? 'items-end' : 'items-start'} group relative`}>
+                      {/* Reply Action Button (on hover) */}
+                      <div className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ${isMe ? "-left-10" : "-right-10"}`}>
+                        <Button 
+                          variant="ghost" 
+                          size="icon" 
+                          className="h-8 w-8 rounded-full hover:bg-muted"
+                          onClick={() => {
+                            setReplyingTo(msg);
+                            document.querySelector<HTMLInputElement>('input[placeholder*="Type a message"]')?.focus();
+                          }}
+                        >
+                          <Reply className="w-4 h-4 text-muted-foreground" />
+                        </Button>
+                      </div>
+
+                      <div className={`rounded-2xl px-4 py-2 ${isMe ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted text-foreground rounded-bl-sm'}`}>
+                        {/* Quoted Message */}
+                        {msg.replyToId && (
+                          <div className={`mb-1.5 p-1 rounded-md text-[10px] border-l ${isMe ? "bg-white/10 border-white/20" : "bg-black/5 border-black/10"}`}>
+                            {(() => {
+                              const repliedMsg = messages.find(m => m.id === msg.replyToId);
+                              return repliedMsg ? (
+                                <>
+                                  <p className="font-bold mb-0.5 opacity-80">{repliedMsg.senderId === Number(session?.user?.id) ? "You" : activeConv?.otherUser.name}</p>
+                                  <p className="opacity-70 truncate line-clamp-1">{decryptedMessages[repliedMsg.id] ?? (isEncrypted(repliedMsg.content) ? "🔒 Encrypted message" : repliedMsg.content)}</p>
+                                </>
+                              ) : <p className="italic opacity-50">Original message deleted</p>;
+                            })()}
+                          </div>
+                        )}
+                        <p className="wrap-break-word text-sm">{decryptedMessages[msg.id] ?? msg.content}</p>
+                        <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                          {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
                     </div>
                   </div>
                   );
@@ -441,6 +497,22 @@ export default function MessagesPage() {
 
             {/* Input */}
             <div className="p-4 border-t border-border bg-card shrink-0">
+              {/* Reply Preview */}
+              {replyingTo && (
+                <div className="mb-3 p-3 bg-muted/50 rounded-xl border border-border flex items-center justify-between animate-in slide-in-from-bottom-2">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[10px] font-bold text-primary uppercase tracking-wider mb-0.5">
+                      Replying to {replyingTo.senderId === Number(session?.user?.id) ? "yourself" : activeConv?.otherUser.name}
+                    </p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {decryptedMessages[replyingTo.id] ?? (isEncrypted(replyingTo.content) ? "🔒 Encrypted message" : replyingTo.content)}
+                    </p>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-6 w-6 rounded-full ml-2" onClick={() => setReplyingTo(null)}>
+                    <CloseIcon className="w-3.5 h-3.5" />
+                  </Button>
+                </div>
+              )}
               <form onSubmit={handleSend} className="flex items-center gap-2">
                 <Input
                   value={inputText}
@@ -462,8 +534,8 @@ export default function MessagesPage() {
         )}
       </div>
 
-      {/* Sidebar (Conversations List) */}
-      <div className={`w-full md:w-80 flex flex-col shrink-0 ${activeConvId ? 'hidden md:flex' : 'flex'}`}>
+      {/* Sidebar (Conversations / Communities) */}
+      <div className={`w-full md:w-80 flex flex-col shrink-0 ${(activeConvId || activeCommunityId) ? 'hidden md:flex' : 'flex'}`}>
         <div className="p-4 border-b border-border flex items-center justify-between">
           <div className="flex items-center gap-3">
              <Button variant="ghost" size="icon" asChild className="lg:hidden">
@@ -471,9 +543,39 @@ export default function MessagesPage() {
              </Button>
              <h1 className="text-xl font-bold">Messages</h1>
           </div>
-          <ThemeToggle />
+          <div className="flex items-center gap-1">
+            {sidebarTab === "communities" && (
+              <Button variant="ghost" size="icon" onClick={() => setShowCreateCommunity(true)}>
+                <Plus className="w-4 h-4" />
+              </Button>
+            )}
+            <ThemeToggle />
+          </div>
         </div>
+
+        {/* Tabs */}
+        <div className="flex border-b border-border">
+          <button
+            onClick={() => setSidebarTab("chats")}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+              sidebarTab === "chats" ? "border-b-2 border-primary text-primary" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <MessageSquare className="w-3.5 h-3.5" /> Chats
+          </button>
+          <button
+            onClick={() => setSidebarTab("communities")}
+            className={`flex-1 py-2.5 text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${
+              sidebarTab === "communities" ? "border-b-2 border-primary text-primary" : "text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            <Users className="w-3.5 h-3.5" /> Communities
+          </button>
+        </div>
+
         <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+          {/* ── Chats Tab ── */}
+          {sidebarTab === "chats" && (<>
           {loadingConversations ? (
             <div className="p-4 space-y-6">
               {[1, 2, 3, 4, 5].map(i => (
@@ -500,6 +602,7 @@ export default function MessagesPage() {
                    className={`p-4 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors flex items-center gap-3 ${activeConvId === conv.id ? 'bg-muted/80' : ''}`}
                    onClick={() => {
                      setActiveConvId(conv.id);
+                     setActiveCommunityId(null);
                      router.push(`/messages?conversationId=${encodeConvId(conv.id)}`, { scroll: false });
                    }}
                  >
@@ -529,9 +632,55 @@ export default function MessagesPage() {
                );
             })
           )}
+          </>)}
+
+          {/* ── Communities Tab ── */}
+          {sidebarTab === "communities" && (
+            communities.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
+                <Users className="w-12 h-12 mb-3 opacity-20" />
+                <p className="text-sm">No communities yet.</p>
+                <Button size="sm" variant="outline" className="mt-3 gap-1" onClick={() => setShowCreateCommunity(true)}>
+                  <Plus className="w-3.5 h-3.5" /> Create one
+                </Button>
+              </div>
+            ) : (
+              communities.map(({ community, role }) => (
+                <div
+                  key={community.id}
+                  className={`p-4 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors flex items-center gap-3 ${
+                    activeCommunityId === community.id ? "bg-muted/80" : ""
+                  }`}
+                  onClick={() => {
+                    setActiveCommunityId(community.id);
+                    setActiveConvId(null);
+                    router.push('/messages', { scroll: false });
+                  }}
+                >
+                  <div className="w-12 h-12 rounded-xl overflow-hidden shrink-0 bg-linear-to-br from-primary/50 to-primary flex items-center justify-center text-white font-bold text-lg">
+                    {community.avatar ? <img src={community.avatar} alt="" className="w-full h-full object-cover" /> : community.name[0].toUpperCase()}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5">
+                      <p className="font-semibold truncate">{community.name}</p>
+                      {role === "admin" && <span className="text-[10px] bg-primary/10 text-primary rounded-full px-1.5 py-0.5 font-medium shrink-0">Admin</span>}
+                    </div>
+                    <p className="text-xs text-muted-foreground truncate">{community.description || (community.type === "private" ? "🔒 Private" : "🌐 Public")}</p>
+                  </div>
+                </div>
+              ))
+            )
+          )}
         </div>
         <MobileNav />
       </div>
+
+      {showCreateCommunity && (
+        <CreateCommunityModal
+          onClose={() => setShowCreateCommunity(false)}
+          onCreated={(newComm) => setCommunities(prev => [{ community: newComm, role: "admin" }, ...prev])}
+        />
+      )}
     </div>
   );
 }
