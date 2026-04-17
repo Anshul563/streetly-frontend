@@ -19,6 +19,9 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MobileNav } from "@/components/MobileNav";
+import { MobileHeader } from "@/components/MobileHeader";
 
 type Issue = {
   id: number;
@@ -120,12 +123,55 @@ export default function ProfilePage() {
     }
   };
 
-  if (isPending || (!session && isPending)) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background text-foreground">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+  const ProfileSkeleton = () => (
+    <div className="min-h-screen bg-background text-foreground flex flex-col items-center pb-20 md:pb-8">
+      <MobileHeader showCreate={true} />
+      <div className="w-full max-w-4xl px-4 md:px-6 mt-6 md:mt-10 space-y-8">
+        <Card className="shadow-md border-border bg-card overflow-hidden">
+          <Skeleton className="h-32 w-full rounded-none" />
+          <div className="px-6 pb-6 relative">
+            <div className="flex justify-between items-end -mt-12 mb-4">
+              <Skeleton className="w-24 h-24 rounded-full border-4 border-card shrink-0" />
+              <div className="flex gap-2">
+                <Skeleton className="h-9 w-24 rounded-md" />
+                <Skeleton className="h-9 w-24 rounded-md" />
+              </div>
+            </div>
+            <div>
+              <Skeleton className="h-8 w-48 mb-2" />
+              <Skeleton className="h-4 w-64" />
+            </div>
+            <div className="mt-6 flex gap-6 border-t border-border pt-6">
+              <Skeleton className="h-12 w-16" />
+              <Skeleton className="h-12 w-16" />
+              <Skeleton className="h-12 w-16" />
+            </div>
+          </div>
+        </Card>
+        <div className="space-y-6">
+          <Skeleton className="h-8 w-40" />
+          <div className="grid gap-6 md:grid-cols-2">
+            {[1, 2].map(i => (
+              <Card key={i} className="overflow-hidden shadow-sm border-border bg-card flex flex-col h-full">
+                <div className="p-4 border-b border-border/50 bg-muted/20">
+                  <Skeleton className="h-4 w-32" />
+                </div>
+                <CardContent className="p-5 flex-1 space-y-3">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-5/6" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
       </div>
-    );
+      <MobileNav />
+    </div>
+  );
+
+  if (isPending || (!session && isPending)) {
+    return <ProfileSkeleton />;
   }
 
   if (!session?.user) {
@@ -139,12 +185,7 @@ export default function ProfilePage() {
     <div className="min-h-screen bg-background text-foreground flex flex-col items-center pb-20 md:pb-8">
       
       {/* Top Navbar */}
-      <div className="bg-card border-b border-border shadow-sm p-4 flex justify-between items-center w-full sticky top-0 z-10 md:hidden">
-        <h1 className="text-xl font-bold tracking-tight text-primary">🚧 Streetly</h1>
-        <div className="flex gap-2">
-          <ThemeToggle />
-        </div>
-      </div>
+      <MobileHeader showCreate={true} />
 
       <div className="w-full max-w-4xl px-4 md:px-6 mt-6 md:mt-10 space-y-8">
         
@@ -243,8 +284,19 @@ export default function ProfilePage() {
           </h3>
           
           {loadingIssues ? (
-            <div className="flex justify-center py-10">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="grid gap-6 md:grid-cols-2">
+              {[1, 2, 3, 4].map(i => (
+                <Card key={i} className="overflow-hidden shadow-sm border-border bg-card flex flex-col h-full">
+                  <div className="p-4 border-b border-border/50 bg-muted/20">
+                    <Skeleton className="h-4 w-32" />
+                  </div>
+                  <CardContent className="p-5 flex-1 space-y-3">
+                    <Skeleton className="h-6 w-3/4" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-5/6" />
+                  </CardContent>
+                </Card>
+              ))}
             </div>
           ) : issues.length === 0 ? (
             <div className="bg-card border border-border rounded-xl p-10 text-center shadow-sm">
@@ -324,6 +376,7 @@ export default function ProfilePage() {
           )}
         </div>
       </div>
+      <MobileNav />
     </div>
   );
 }

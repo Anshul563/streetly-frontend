@@ -12,6 +12,18 @@ import { useSearchParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { FeedSidebar } from "@/components/FeedSidebar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { MobileNav } from "@/components/MobileNav";
+import {
+  generateAndStoreKeyPair,
+  getStoredPublicKeyJwk,
+  hasLocalKeyPair,
+  encryptMessage,
+  decryptMessage,
+  isEncrypted,
+  encodeConvId,
+  decodeConvId,
+} from "@/lib/crypto";
 
 type Conversation = {
   id: number;
@@ -24,6 +36,7 @@ type Conversation = {
     username: string;
     avatar: string | null;
     image: string | null;
+    publicKey: string | null;
   };
   latestMessage?: {
     content: string;
@@ -48,13 +61,38 @@ export default function MessagesPage() {
   const router = useRouter();
   
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(true);
   const [activeConvId, setActiveConvId] = useState<number | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [decryptedMessages, setDecryptedMessages] = useState<Record<number, string>>({});
+  const [decryptedPreviews, setDecryptedPreviews] = useState<Record<number, string>>({});
+  const [loadingMessages, setLoadingMessages] = useState(false);
   const [inputText, setInputText] = useState("");
   const [typing, setTyping] = useState(false);
   const [otherUserTyping, setOtherUserTyping] = useState(false);
+  const [e2eeReady, setE2eeReady] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // E2EE key initialization
+  useEffect(() => {
+    if (!session?.user) return;
+    const initKeys = async () => {
+      if (!hasLocalKeyPair()) {
+        await generateAndStoreKeyPair();
+      }
+      const publicKeyJwk = getStoredPublicKeyJwk();
+      if (publicKeyJwk) {
+        try {
+          await API.put("/users/key", { publicKey: publicKeyJwk });
+        } catch (e) {
+          console.warn("[E2EE] Failed to upload public key:", e);
+        }
+      }
+      setE2eeReady(true);
+    };
+    initKeys();
+  }, [session?.user]);
 
   // Initial Data Fetch
   useEffect(() => {
@@ -65,20 +103,44 @@ export default function MessagesPage() {
 
   const fetchConversations = async () => {
     try {
+      setLoadingConversations(true);
       const res = await API.get("/chat/conversations");
-      setConversations(res.data);
+      const convList: Conversation[] = res.data;
+      setConversations(convList);
+
+      // Decrypt latest message previews for each conversation
+      const previews: Record<number, string> = {};
+      await Promise.all(
+        convList.map(async (conv) => {
+          const latest = conv.latestMessage;
+          if (!latest) return;
+          if (!isEncrypted(latest.content)) {
+            previews[conv.id] = latest.content;
+            return;
+          }
+          if (conv.otherUser.publicKey) {
+            previews[conv.id] = await decryptMessage(latest.content, conv.otherUser.publicKey);
+          } else {
+            previews[conv.id] = "Encrypted message";
+          }
+        })
+      );
+      setDecryptedPreviews(previews);
       
-      const convId = searchParams.get("conversationId");
-      if (convId) {
-        setActiveConvId(parseInt(convId));
-      } else if (res.data.length > 0 && !activeConvId) {
+      const convToken = searchParams.get("conversationId");
+      if (convToken) {
+        const decoded = decodeConvId(convToken);
+        if (decoded) setActiveConvId(decoded);
+      } else if (convList.length > 0 && !activeConvId) {
         // Optionally select first conversation on desktop
         if (window.innerWidth > 768) {
-          setActiveConvId(res.data[0].id);
+          setActiveConvId(convList[0].id);
         }
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoadingConversations(false);
     }
   };
 
@@ -94,15 +156,42 @@ export default function MessagesPage() {
 
   const fetchMessages = async (id: number) => {
     try {
+      setLoadingMessages(true);
       const res = await API.get(`/chat/${id}`);
-      setMessages(res.data);
+      const rawMessages: Message[] = res.data;
+      setMessages(rawMessages);
+
+      // Decrypt all messages asynchronously
+      const conv = conversations.find(c => c.id === id);
+      if (conv) {
+        const decryptMap: Record<number, string> = {};
+        await Promise.all(
+          rawMessages.map(async (msg) => {
+            if (!isEncrypted(msg.content)) {
+              decryptMap[msg.id] = msg.content;
+              return;
+            }
+            // ECDH shared secret: ECDH(my_private, their_public)
+            // This is the same whether I sent or received the message,
+            // because ECDH(alice_priv, bob_pub) == ECDH(bob_priv, alice_pub).
+            const sharedKeySource = conv.otherUser.publicKey;
+            if (sharedKeySource) {
+              decryptMap[msg.id] = await decryptMessage(msg.content, sharedKeySource);
+            } else {
+              decryptMap[msg.id] = "[Encrypted — partner key unavailable]";
+            }
+          })
+        );
+        setDecryptedMessages(decryptMap);
+      }
+
       scrollToBottom();
-      
-      // Notify socket that we read messages
       const socket = connectSocket();
       socket.emit("mark_read", { conversationId: id, userId: session?.user?.id });
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoadingMessages(false);
     }
   };
 
@@ -115,16 +204,25 @@ export default function MessagesPage() {
     // Register user
     socket.emit("register", session.user.id);
     
-    socket.on("receive_message", (message: Message) => {
+    socket.on("receive_message", async (message: Message) => {
       if (message.conversationId === activeConvId) {
         setMessages(prev => [...prev, message]);
+        // Decrypt incoming real-time message
+        const conv = conversations.find(c => c.id === activeConvId);
+        if (conv && isEncrypted(message.content)) {
+          // Always derive using the partner's public key — ECDH is symmetric
+          const decrypted = conv.otherUser.publicKey
+            ? await decryptMessage(message.content, conv.otherUser.publicKey)
+            : "[Encrypted — partner key unavailable]";
+          setDecryptedMessages(prev => ({ ...prev, [message.id]: decrypted }));
+        } else {
+          setDecryptedMessages(prev => ({ ...prev, [message.id]: message.content }));
+        }
         scrollToBottom();
-        // Mark read immediately if we are in the active conversation and didn't send it
         if (message.senderId !== Number(session.user.id)) {
-            socket.emit("mark_read", { conversationId: activeConvId, userId: Number(session.user.id) });
+          socket.emit("mark_read", { conversationId: activeConvId, userId: Number(session.user.id) });
         }
       } else {
-        // Update conversation list with unread
         fetchConversations();
       }
     });
@@ -191,29 +289,44 @@ export default function MessagesPage() {
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputText.trim() || !activeConvId || !session?.user) return;
+    const plaintext = inputText.trim();
+    if (!plaintext || !activeConvId || !session?.user) return;
 
     const activeConv = conversations.find(c => c.id === activeConvId);
     if (!activeConv) return;
     
     const receiverId = activeConv.otherUser.id;
 
+    // Encrypt the message if recipient has a public key
+    let content = plaintext;
+    if (activeConv.otherUser.publicKey) {
+      const encrypted = await encryptMessage(plaintext, activeConv.otherUser.publicKey);
+      if (encrypted) content = encrypted;
+    }
+
     const socket = getSocket();
     socket.emit("send_message", {
       conversationId: activeConvId,
       senderId: session.user.id,
       receiverId,
-      content: inputText.trim()
+      content,
     });
     
-    // update local latest message
+    // Show plaintext locally immediately
+    const tempId = Date.now();
+    setDecryptedMessages(prev => ({ ...prev, [tempId]: plaintext }));
+
+    // update local latest message preview (store encrypted content, but keep preview decrypted)
     setConversations(prev => prev.map(c => 
       c.id === activeConvId ? { 
         ...c, 
-        latestMessage: { content: inputText.trim(), senderId: Number(session.user.id), createdAt: new Date().toISOString() },
+        latestMessage: { content, senderId: Number(session.user.id), createdAt: new Date().toISOString() },
         updatedAt: new Date().toISOString()
       } : c
     ).sort((a,b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()));
+
+    // Keep sidebar preview showing plaintext
+    setDecryptedPreviews(prev => ({ ...prev, [activeConvId]: plaintext }));
 
     setInputText("");
     socket.emit("stop_typing", { conversationId: activeConvId, senderId: session.user.id });
@@ -258,8 +371,32 @@ export default function MessagesPage() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((msg, i) => {
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 pb-16 md:pb-4">
+              {loadingMessages ? (
+                <div className="space-y-4 mt-4">
+                   <div className="flex gap-2 items-end">
+                     <Skeleton className="w-8 h-8 rounded-full shrink-0 bg-secondary" />
+                     <Skeleton className="h-10 w-48 rounded-2xl rounded-bl-sm bg-muted" />
+                   </div>
+                   <div className="flex gap-2 items-end flex-row-reverse">
+                     <Skeleton className="h-10 w-32 rounded-2xl rounded-br-sm bg-primary/20" />
+                   </div>
+                   <div className="flex gap-2 items-end">
+                     <Skeleton className="w-8 h-8 rounded-full shrink-0 bg-secondary" />
+                     <Skeleton className="h-16 w-64 rounded-2xl rounded-bl-sm bg-muted" />
+                   </div>
+                </div>
+              ) : (
+                <>
+                  {/* E2EE Banner */}
+                  <div className="flex flex-col items-center gap-1 py-3 px-4 select-none">
+                    <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground/70 bg-muted/50 rounded-full px-3 py-1.5">
+                      <span>🔒</span>
+                      <span>Messages are end-to-end encrypted. Only you and {activeConv?.otherUser.name} can read them.</span>
+                    </div>
+                  </div>
+
+                  {messages.map((msg, i) => {
                 const isMe = msg.senderId === Number(session?.user?.id);
                 const showAvatar = i === messages.length - 1 || messages[i+1].senderId !== msg.senderId;
                 return (
@@ -275,14 +412,14 @@ export default function MessagesPage() {
                     )}
                     
                     <div className={`max-w-[70%] rounded-2xl px-4 py-2 ${isMe ? 'bg-primary text-primary-foreground rounded-br-sm' : 'bg-muted text-foreground rounded-bl-sm'}`}>
-                      <p className="wrap-break-word text-sm">{msg.content}</p>
+                      <p className="wrap-break-word text-sm">{decryptedMessages[msg.id] ?? msg.content}</p>
                       <p className={`text-[10px] mt-1 text-right ${isMe ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
                         {new Date(msg.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
                   </div>
-                );
-              })}
+                  );
+                })}
               {otherUserTyping && (
                  <div className="flex gap-2 items-end">
                    <div className="w-8 h-8 rounded-full overflow-hidden bg-secondary shrink-0 mb-1">
@@ -298,21 +435,23 @@ export default function MessagesPage() {
                  </div>
               )}
               <div ref={messagesEndRef} />
+                </>
+              )}
             </div>
 
             {/* Input */}
-            <div className="p-4 border-t border-border bg-card">
-              <form onSubmit={handleSend} className="flex gap-2 relative">
+            <div className="p-4 border-t border-border bg-card shrink-0">
+              <form onSubmit={handleSend} className="flex items-center gap-2">
                 <Input
                   value={inputText}
                   onChange={handleInput}
                   placeholder="Type a message..."
-                  className="rounded-full pr-12 bg-muted border-transparent focus-visible:ring-1 focus-visible:ring-primary/30"
+                  className=""
                 />
                 <Button 
                   type="submit" 
                   size="icon" 
-                  className={`absolute right-1 top-1 w-8 h-8 rounded-full transition-all ${inputText.trim() ? 'bg-primary text-primary-foreground' : 'bg-transparent text-muted-foreground hover:bg-transparent'}`}
+                  
                   disabled={!inputText.trim()}
                 >
                   <Send className="w-4 h-4" />
@@ -334,8 +473,20 @@ export default function MessagesPage() {
           </div>
           <ThemeToggle />
         </div>
-        <div className="flex-1 overflow-y-auto">
-          {conversations.length === 0 ? (
+        <div className="flex-1 overflow-y-auto pb-16 md:pb-0">
+          {loadingConversations ? (
+            <div className="p-4 space-y-6">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="flex items-center gap-3">
+                  <Skeleton className="w-12 h-12 rounded-full shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-24" />
+                    <Skeleton className="h-3 w-40" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : conversations.length === 0 ? (
             <div className="p-8 text-center text-muted-foreground flex flex-col items-center">
               <MessageSquare className="w-12 h-12 mb-3 opacity-20" />
               <p>No messages yet.</p>
@@ -349,7 +500,7 @@ export default function MessagesPage() {
                    className={`p-4 border-b border-border cursor-pointer hover:bg-muted/50 transition-colors flex items-center gap-3 ${activeConvId === conv.id ? 'bg-muted/80' : ''}`}
                    onClick={() => {
                      setActiveConvId(conv.id);
-                     router.push(`/messages?conversationId=${conv.id}`, { scroll: false });
+                     router.push(`/messages?conversationId=${encodeConvId(conv.id)}`, { scroll: false });
                    }}
                  >
                    <div className="w-12 h-12 rounded-full overflow-hidden shrink-0 bg-secondary flex items-center justify-center font-bold relative">
@@ -370,7 +521,7 @@ export default function MessagesPage() {
                      {conv.latestMessage && (
                        <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'font-semibold text-foreground' : 'text-muted-foreground'}`}>
                          {conv.latestMessage.senderId === Number(session?.user?.id) ? 'You: ' : ''}
-                         {conv.latestMessage.content}
+                         {decryptedPreviews[conv.id] ?? (isEncrypted(conv.latestMessage.content) ? '🔒 Encrypted message' : conv.latestMessage.content)}
                        </p>
                      )}
                    </div>
@@ -379,6 +530,7 @@ export default function MessagesPage() {
             })
           )}
         </div>
+        <MobileNav />
       </div>
     </div>
   );

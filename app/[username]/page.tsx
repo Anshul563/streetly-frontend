@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { API } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
+import { encodeConvId } from "@/lib/crypto";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -262,7 +263,7 @@ export default function UserProfilePage() {
     if (!profile) return;
     try {
       const res = await API.post(`/chat/start/${profile.id}`);
-      router.push(`/messages?conversationId=${res.data.id}`);
+      router.push(`/messages?conversationId=${encodeConvId(res.data.id)}`);
     } catch (err: any) {
       toast.error(err.response?.data?.message || "Failed to start chat");
     }

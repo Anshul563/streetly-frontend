@@ -27,9 +27,11 @@ import {
   Loader2,
   Upload,
   CheckCircle2,
-  XCircle
+  XCircle,
+  ArrowLeft
 } from "lucide-react";
 import Link from "next/link";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function GovSettings() {
   const { data: session, isPending } = useSession();
@@ -156,8 +158,40 @@ export default function GovSettings() {
     window.location.href = "/gov/login";
   };
 
+  const GovSettingsSkeleton = () => (
+    <div className="flex h-screen overflow-hidden bg-background">
+      <aside className="hidden md:flex flex-col w-64 border-r border-border bg-card/50 p-4">
+        <Skeleton className="h-8 w-32 mb-8" />
+        <div className="space-y-4 flex-1">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-10 w-full" />
+        </div>
+      </aside>
+      <main className="flex-1 p-6 lg:p-8">
+        <Skeleton className="h-8 w-48 mb-6" />
+        <Card className="border-border shadow-md max-w-3xl">
+          <CardHeader>
+            <Skeleton className="h-6 w-48" />
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="flex gap-6">
+              <Skeleton className="w-24 h-24 rounded-full" />
+              <div className="space-y-2 flex-1">
+                <Skeleton className="h-10 w-full" />
+                <Skeleton className="h-10 w-full" />
+              </div>
+            </div>
+            <Skeleton className="h-24 w-full" />
+            <Skeleton className="h-10 w-32" />
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+
   if (isPending) {
-    return <div className="flex h-screen bg-muted/20 items-center justify-center"><Loader2 className="w-8 h-8 animate-spin" /></div>;
+    return <GovSettingsSkeleton />;
   }
 
   return (
@@ -211,7 +245,10 @@ export default function GovSettings() {
       {/* Main Content */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
         <header className="h-16 border-b border-border bg-card/50 flex items-center justify-between px-4 sm:px-6 backdrop-blur-sm sticky top-0 z-10 shrink-0">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <Button asChild variant="ghost" size="icon" className="md:hidden -ml-2">
+              <Link href="/gov/dashboard"><ArrowLeft className="w-5 h-5" /></Link>
+            </Button>
             <h1 className="font-semibold text-lg md:hidden">Settings</h1>
           </div>
           <ThemeToggle />
