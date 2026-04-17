@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSession } from "@/lib/auth-client";
 import { API } from "@/lib/api";
 import { connectSocket, disconnectSocket, getSocket } from "@/lib/socket";
@@ -60,6 +60,14 @@ type Message = {
 };
 
 export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center h-screen bg-background text-muted-foreground">Loading messages...</div>}>
+      <MessagesContent />
+    </Suspense>
+  );
+}
+
+function MessagesContent() {
   const { data: session } = useSession();
   const searchParams = useSearchParams();
   const router = useRouter();
