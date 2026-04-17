@@ -32,13 +32,17 @@ export function NotificationDialog({ children }: NotificationDialogProps) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
+  const [hasLoaded, setHasLoaded] = useState(false);
 
   const fetchNotifications = async () => {
     if (!session?.user) return;
     try {
       setLoading(true);
-      const res = await API.get("/notifications");
+      const res = await API.get("/notifications", {
+        headers: { "Cache-Control": "no-cache" }
+      });
       setNotifications(res.data);
+      setHasLoaded(true);
     } catch (err) {
       console.error("Failed to fetch notifications:", err);
     } finally {
@@ -71,12 +75,12 @@ export function NotificationDialog({ children }: NotificationDialogProps) {
     }
   };
 
-  useEffect(() => {
-    if (session?.user) {
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (newOpen && !hasLoaded) {
       fetchNotifications();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session?.user]);
+  };
 
   useEffect(() => {
     if (open && session?.user) {
@@ -102,7 +106,7 @@ export function NotificationDialog({ children }: NotificationDialogProps) {
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <div className="relative">
           {children}

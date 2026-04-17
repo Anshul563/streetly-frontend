@@ -102,6 +102,7 @@ function MiniCarousel({ images }: { images: string[] }) {
 }
 
 function PostCard({ post }: { post: Post }) {
+  const [currentTime] = useState(() => Date.now());
   const isPost = post.type === "post";
   const images =
     post.images && post.images.length > 0
@@ -170,7 +171,7 @@ function PostCard({ post }: { post: Post }) {
             </span>
           )}
           <span className="ml-auto text-[10px] text-muted-foreground">
-            {new Date(post.createdAt || Date.now()).toLocaleDateString(
+            {new Date(post.createdAt || currentTime).toLocaleDateString(
               "en-US",
               { month: "short", day: "numeric" },
             )}
@@ -192,9 +193,15 @@ export default function UserProfilePage() {
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<"all" | "posts" | "issues">("all");
+  const [currentTime] = useState(() => Date.now());
+
+  const sessionUsername =
+    session && typeof session.user === "object" && session.user !== null
+      ? (session.user as { username?: string }).username
+      : undefined;
 
   const isOwnProfile =
-    session?.user && (session.user as any).username === username;
+    session?.user && sessionUsername === username;
 
   useEffect(() => {
     if (username) fetchProfile();
@@ -210,8 +217,11 @@ export default function UserProfilePage() {
     try {
       const res = await API.get(`/users/${username}`);
       setProfile(res.data);
-    } catch (err: any) {
-      setError(err.response?.data?.message || "User not found");
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+      };
+      setError(axiosError.response?.data?.message || "User not found");
     } finally {
       setLoading(false);
     }
@@ -248,8 +258,11 @@ export default function UserProfilePage() {
         );
         toast.success(`Now following @${profile.username}!`);
       }
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Something went wrong");
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+      };
+      toast.error(axiosError.response?.data?.message || "Something went wrong");
     } finally {
       setFollowLoading(false);
     }
@@ -264,8 +277,11 @@ export default function UserProfilePage() {
     try {
       const res = await API.post(`/chat/start/${profile.id}`);
       router.push(`/messages?conversationId=${encodeConvId(res.data.id)}`);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message || "Failed to start chat");
+    } catch (err: unknown) {
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+      };
+      toast.error(axiosError.response?.data?.message || "Failed to start chat");
     }
   };
 

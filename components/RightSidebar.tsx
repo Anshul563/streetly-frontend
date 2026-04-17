@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   TrendingUp,
@@ -9,6 +10,8 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { useSession } from "@/lib/auth-client";
+import { followUser, unfollowUser, checkIsFollowing } from "@/lib/social";
 import { Skeleton } from "@/components/ui/skeleton";
 import { createSlug } from "@/lib/utils";
 
@@ -22,6 +25,7 @@ type TrendingItem = {
 type TopUser = {
   id: number;
   name: string;
+  username?: string;
   role?: string;
   image?: string;
   avatar?: string;
@@ -35,6 +39,94 @@ type Props = {
 };
 
 export function RightSidebar({ trending, topUsers, loading = false }: Props) {
+  const { data: session } = useSession();
+  const [followState, setFollowState] = useState<
+    Record<number, boolean | undefined>
+  >({});
+  const [followLoading, setFollowLoading] = useState<Record<number, boolean>>(
+    {},
+  );
+
+  useEffect(() => {
+    if (!session?.user || topUsers.length === 0) return;
+
+    const loadFollowStatuses = async () => {
+      // Batch requests with fallback error handling
+      const entries = await Promise.allSettled(
+        topUsers.map(async (user) => {
+          try {
+            const res = await checkIsFollowing(user.id);
+            return [user.id, !!res.data.isFollowing] as const;
+          } catch (e) {
+            console.error(
+              `Failed to check follow status for user ${user.id}:`,
+              e,
+            );
+            return [user.id, undefined] as const;
+          }
+        }),
+      );
+
+      const result: Record<number, boolean | undefined> = {};
+      entries.forEach((settlement) => {
+        if (settlement.status === "fulfilled") {
+          const [userId, status] = settlement.value;
+          result[userId] = status;
+        }
+      });
+
+      setFollowState((prev) => ({ ...prev, ...result }));
+    };
+
+    loadFollowStatuses();
+  }, [session?.user, topUsers]);
+
+  const refreshFollowState = async (userId: number) => {
+    try {
+      const res = await checkIsFollowing(userId);
+      setFollowState((prev) => ({
+        ...prev,
+        [userId]: !!res.data.isFollowing,
+      }));
+    } catch {
+      setFollowState((prev) => ({ ...prev, [userId]: undefined }));
+    }
+  };
+
+  const handleFollowToggle = async (user: TopUser) => {
+    if (!session?.user) {
+      window.location.href = "/login";
+      return;
+    }
+
+    setFollowLoading((prev) => ({ ...prev, [user.id]: true }));
+
+    try {
+      let response;
+      if (followState[user.id]) {
+        response = await unfollowUser(user.id);
+      } else {
+        response = await followUser(user.id);
+      }
+
+      // Use the server response to update state (avoids cache race conditions)
+      if (response?.data?.isFollowing !== undefined) {
+        setFollowState((prev) => ({
+          ...prev,
+          [user.id]: response.data.isFollowing,
+        }));
+      } else {
+        // Fallback: refresh from server if response doesn't include status
+        await refreshFollowState(user.id);
+      }
+    } catch (err) {
+      console.error("Follow action failed", err);
+      await refreshFollowState(user.id);
+    } finally {
+      setFollowLoading((prev) => ({ ...prev, [user.id]: false }));
+    }
+  };
+
   return (
     <aside className="hidden lg:flex flex-col gap-5 sticky top-8">
       {/* ── Trending ───────────────────────────────────── */}
@@ -144,53 +236,79 @@ export function RightSidebar({ trending, topUsers, loading = false }: Props) {
                   No contributors yet.
                 </p>
               )}
-              {topUsers.map((user, i) => {
+              {topUsers.map((user) => {
                 const av = user.image || user.avatar;
+                const followStatus = followState[user.id];
+                const isFollowing = followStatus === true;
+                const isLoading = !!followLoading[user.id];
+                const isPending = session?.user
+                  ? followStatus === undefined
+                  : false;
+                const profileUrl = user.username
+                  ? `/${user.username}`
+                  : "/profile";
+                const sessionUserId = session?.user?.id;
+                const sessionUsername =
+                  session && typeof session.user === "object" && session.user !== null
+                    ? (session.user as { username?: string }).username
+                    : undefined;
+                const isSelf = Boolean(
+                  sessionUserId !== undefined &&
+                  (String(sessionUserId) === String(user.id) ||
+                    (user.username &&
+                      String(sessionUsername) === String(user.username))),
+                );
+
                 return (
                   <div
                     key={user.id}
                     className="group flex items-center gap-3 px-5 py-3 hover:bg-accent/40 transition-colors"
                   >
-                    {/* Rank badge */}
-                    <span
-                      className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-black shrink-0
-                      ${i === 0 ? "bg-amber-400/20 text-amber-500" : i === 1 ? "bg-zinc-400/20 text-zinc-400" : i === 2 ? "bg-orange-700/20 text-orange-700" : "bg-muted text-muted-foreground"}`}
+                    <Link
+                      href={profileUrl}
+                      className="flex items-center gap-3 flex-1 min-w-0"
                     >
-                      {i + 1}
-                    </span>
+                      <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-border/60 bg-secondary">
+                        {av ? (
+                          <img
+                            src={av}
+                            alt={user.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-xs font-bold text-muted-foreground">
+                            {(user.name || "?").charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
 
-                    {/* Avatar */}
-                    <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-border/60 bg-secondary">
-                      {av ? (
-                        <img
-                          src={av}
-                          alt={user.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <div className="w-full h-full flex items-center justify-center text-xs font-bold text-muted-foreground">
-                          {(user.name || "?").charAt(0).toUpperCase()}
-                        </div>
-                      )}
-                    </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
+                          {user.name}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground truncate">
+                          {user.role === "user"
+                            ? `${user.count ?? 0} issue${(user.count ?? 0) !== 1 ? "s" : ""} reported`
+                            : user.role}
+                        </p>
+                      </div>
+                    </Link>
 
-                    {/* Info */}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate group-hover:text-primary transition-colors">
-                        {user.name}
-                      </p>
-                      <p className="text-[10px] text-muted-foreground truncate">
-                        {user.role === "user"
-                          ? `${user.count ?? 0} issue${(user.count ?? 0) !== 1 ? "s" : ""} reported`
-                          : user.role}
-                      </p>
-                    </div>
-
-                    {/* Follow */}
-                    <button className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-primary border border-primary/30 rounded-full px-2.5 py-1 hover:bg-primary hover:text-primary-foreground transition-all">
-                      <UserPlus className="w-3 h-3" />
-                      Follow
-                    </button>
+                    {!isSelf && (
+                      <button
+                        type="button"
+                        onClick={() => handleFollowToggle(user)}
+                        disabled={isLoading || isPending}
+                        className="shrink-0 flex items-center gap-1 text-[11px] font-semibold text-primary border border-primary/30 rounded-full px-2.5 py-1 hover:bg-primary hover:text-primary-foreground transition-all disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <UserPlus className="w-3 h-3" />
+                        {isLoading || isPending
+                          ? "Loading"
+                          : isFollowing
+                            ? "Following"
+                            : "Follow"}
+                      </button>
+                    )}
                   </div>
                 );
               })}

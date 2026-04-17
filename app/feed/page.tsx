@@ -4,7 +4,8 @@ import { useEffect, useState } from "react";
 import { API } from "@/lib/api";
 import { useSession } from "@/lib/auth-client";
 import { connectSocket, getSocket } from "@/lib/socket";
-import { likeTarget, unlikeTarget, supportTarget } from "@/lib/social";
+import { likeTarget, unlikeTarget, supportTarget, getFeedIssues, getFeedTrending, getFeedTopContributors } from "@/lib/social";
+
 import {
   PlusSquare,
   MapPin,
@@ -52,6 +53,16 @@ type FeedItem = {
     image: string;
     avatar: string;
   };
+};
+
+type TopUser = {
+  id: number;
+  name: string;
+  username?: string;
+  role?: string;
+  image?: string;
+  avatar?: string;
+  count?: number;
 };
 
 // Image carousel for posts with multiple images
@@ -118,6 +129,7 @@ function PostCard({
   onLike: () => Promise<void>;
   onComment: () => void;
 }) {
+  const [currentTime] = useState(() => Date.now());
   const images =
     item.images && item.images.length > 0
       ? item.images
@@ -156,7 +168,7 @@ function PostCard({
                 </>
               )}
               <span>
-                {new Date(item.createdAt || Date.now()).toLocaleDateString(
+                {new Date(item.createdAt || currentTime).toLocaleDateString(
                   "en-US",
                   {
                     month: "short",
@@ -251,6 +263,7 @@ function IssueCard({
   onSupport: () => Promise<void>;
   onComment: () => void;
 }) {
+  const [currentTime] = useState(() => Date.now());
   return (
     <Card className="overflow-hidden shadow-md border-border bg-card hover:border-destructive/20 transition-colors">
       <div className="p-4 pb-2 flex items-center justify-between">
@@ -282,7 +295,7 @@ function IssueCard({
                 </>
               )}
               <span>
-                {new Date(item.createdAt || Date.now()).toLocaleDateString(
+                {new Date(item.createdAt || currentTime).toLocaleDateString(
                   "en-US",
                   {
                     month: "short",
@@ -425,9 +438,10 @@ export default function FeedPage() {
   const { data: session } = useSession();
   const [items, setItems] = useState<FeedItem[]>([]);
   const [trending, setTrending] = useState<FeedItem[]>([]);
-  const [topUsers, setTopUsers] = useState<any[]>([]);
+  const [topUsers, setTopUsers] = useState<TopUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "post" | "issue">("all");
+  const [currentTime] = useState(() => Date.now());
 
   const [likedItems, setLikedItems] = useState<Record<number, boolean>>({});
   const [supportedItems, setSupportedItems] = useState<Record<number, boolean>>(
@@ -435,6 +449,11 @@ export default function FeedPage() {
   );
   const [likeCount, setLikeCount] = useState<Record<number, number>>({});
   const [supportCount, setSupportCount] = useState<Record<number, number>>({});
+
+  const sessionUsername =
+    session && typeof session.user === "object" && session.user !== null
+      ? (session.user as { username?: string }).username
+      : undefined;
 
   const userReportsCount = items.filter(
     (item) => item.userId === session?.user?.id && item.type !== "post",
@@ -449,18 +468,21 @@ export default function FeedPage() {
   }, []);
 
   useEffect(() => {
-    // @ts-ignore
-    if (session?.user && !session.user.username) {
+    if (session?.user && !sessionUsername) {
       window.location.href = "/onboarding";
     }
-  }, [session]);
+  }, [session, sessionUsername]);
 
   const fetchAllData = async () => {
     try {
+      const issuesPromise = getFeedIssues<FeedItem[]>();
+      const trendingPromise = getFeedTrending<FeedItem[]>();
+      const topUsersPromise = getFeedTopContributors<TopUser[]>();
+
       const [issuesRes, trendingRes, topUsersRes] = await Promise.all([
-        API.get("/issues"),
-        API.get("/issues/trending"),
-        API.get("/issues/top-contributors"),
+        issuesPromise,
+        trendingPromise,
+        topUsersPromise,
       ]);
       const sorted = issuesRes.data.sort(
         (a: FeedItem, b: FeedItem) => b.id - a.id,
@@ -478,19 +500,21 @@ export default function FeedPage() {
   useEffect(() => {
     const socket = connectSocket();
 
-    const onLikeCreated = (payload: any) => {
-      if (!payload?.issueId) return;
+    const onLikeCreated = (payload: { issueId?: number }) => {
+      const issueId = payload.issueId;
+      if (!issueId) return;
       setLikeCount((prev) => ({
         ...prev,
-        [payload.issueId]: (prev[payload.issueId] || 0) + 1,
+        [issueId]: (prev[issueId] || 0) + 1,
       }));
     };
 
-    const onSupportCreated = (payload: any) => {
-      if (!payload?.issueId) return;
+    const onSupportCreated = (payload: { issueId?: number }) => {
+      const issueId = payload.issueId;
+      if (!issueId) return;
       setSupportCount((prev) => ({
         ...prev,
-        [payload.issueId]: (prev[payload.issueId] || 0) + 1,
+        [issueId]: (prev[issueId] || 0) + 1,
       }));
     };
 
@@ -610,7 +634,7 @@ export default function FeedPage() {
                 asChild
                 className="bg-primary text-primary-foreground hover:bg-primary/90"
               >
-                <a href="/issue/create">Create Something</a>
+                <Link href="/issue/create">Create Something</Link>
               </Button>
             </div>
           ) : (
