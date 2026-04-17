@@ -3,7 +3,7 @@
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { useSession } from "@/lib/auth-client";
+import { useSession, signOut } from "@/lib/auth-client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { NotificationDialog } from "@/components/NotificationDialog";
 import {
@@ -23,10 +23,12 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
+import { MessageSquare } from "lucide-react";
 const NAV_ITEMS = [
   { href: "/feed",         icon: Home,       label: "Home" },
   { href: "/map",          icon: Map,         label: "Explore Map" },
   { href: "/issue/create", icon: PlusSquare,  label: "Create" },
+  { href: "/messages",     icon: MessageSquare,label: "Messages" },
   { href: "/profile",      icon: User,        label: "My Profile" },
 ];
 
@@ -80,15 +82,7 @@ export function FeedSidebar({ postsCount = 0 }: Props) {
           );
         })}
 
-        {/* Notifications */}
-        <div className="mt-2">
-          <NotificationDialog>
-            <button className="group relative flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 font-medium text-sm text-muted-foreground hover:text-foreground hover:bg-accent w-full text-left">
-              <Bell className="w-[18px] h-[18px] shrink-0" />
-              <span>Notifications</span>
-            </button>
-          </NotificationDialog>
-        </div>
+
 
         {/* Quick create CTA */}
         <div className="mt-3 mx-0">
@@ -128,12 +122,12 @@ export function FeedSidebar({ postsCount = 0 }: Props) {
           </div>
         ) : session?.user && (
           <div className="mt-4">
-            <Link
-              href={username ? `/${username}` : "/profile"}
-              className="block group"
-            >
-              <div className="rounded-2xl border border-border bg-card p-3.5 hover:border-primary/30 hover:bg-accent/30 transition-all duration-200 shadow-sm">
-                <div className="flex items-center gap-3">
+            <div className="rounded-2xl border border-border bg-card p-3.5 hover:border-primary/30 hover:bg-accent/30 transition-all duration-200 shadow-sm group">
+              <div className="flex items-center gap-3">
+                <Link
+                  href={username ? `/${username}` : "/profile"}
+                  className="flex items-center gap-3 flex-1 min-w-0"
+                >
                   <div className="relative w-10 h-10 rounded-full overflow-hidden shrink-0 ring-2 ring-border group-hover:ring-primary/30 transition-all">
                     {avatar ? (
                       <Image
@@ -157,26 +151,31 @@ export function FeedSidebar({ postsCount = 0 }: Props) {
                       @{username || "user"}
                     </p>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-sm font-bold text-foreground">{postsCount}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Posts</p>
-                  </div>
+                </Link>
+                <div className="text-right shrink-0 z-10 mr-1">
+                  <NotificationDialog>
+                    <button className="p-2 rounded-full hover:bg-muted text-muted-foreground hover:text-foreground transition-colors cursor-pointer flex items-center justify-center">
+                      <Bell className="w-[18px] h-[18px]" />
+                    </button>
+                  </NotificationDialog>
                 </div>
               </div>
-            </Link>
+            </div>
           </div>
         )}
       </nav>
 
-      {/* ── Footer actions ────────────────────────────── */}
       <div className="pt-4 border-t border-border space-y-1">
-        <Link
-          href="/login"
-          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive/80 hover:text-destructive hover:bg-destructive/8 transition-all duration-200"
+        <button
+          onClick={async () => {
+            await signOut();
+            window.location.href = "/login";
+          }}
+          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-destructive/80 hover:text-destructive hover:bg-destructive/8 transition-all duration-200 w-full text-left"
         >
           <LogOut className="w-[18px] h-[18px] shrink-0" />
           <span>Log out</span>
-        </Link>
+        </button>
         <p className="text-[10px] text-muted-foreground/50 px-3 pb-1">
           © 2026 Streetly
         </p>

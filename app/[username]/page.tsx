@@ -254,6 +254,20 @@ export default function UserProfilePage() {
     }
   };
 
+  const handleMessage = async () => {
+    if (!session?.user) {
+      toast.error("Please log in to message users");
+      return;
+    }
+    if (!profile) return;
+    try {
+      const res = await API.post(`/chat/start/${profile.id}`);
+      router.push(`/messages?conversationId=${res.data.id}`);
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || "Failed to start chat");
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background text-foreground">
@@ -426,27 +440,38 @@ export default function UserProfilePage() {
                   <Link href="/profile">Edit Profile</Link>
                 </Button>
               ) : (
-                <Button
-                  size="sm"
-                  variant={isFollowing ? "outline" : "default"}
-                  className={`w-full md:w-auto gap-2 ${isFollowing ? "border-primary/40 text-primary hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40" : ""}`}
-                  onClick={handleFollow}
-                  disabled={followLoading}
-                >
-                  {followLoading ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : isFollowing ? (
-                    <>
-                      <UserCheck className="w-4 h-4" />
-                      Following
-                    </>
-                  ) : (
-                    <>
-                      <UserPlus className="w-4 h-4" />
-                      Follow
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2 w-full md:w-auto">
+                  <Button
+                    size="sm"
+                    variant={isFollowing ? "outline" : "default"}
+                    className={`flex-1 md:flex-none gap-2 ${isFollowing ? "border-primary/40 text-primary hover:bg-destructive/10 hover:text-destructive hover:border-destructive/40" : ""}`}
+                    onClick={handleFollow}
+                    disabled={followLoading}
+                  >
+                    {followLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : isFollowing ? (
+                      <>
+                        <UserCheck className="w-4 h-4" />
+                        Following
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus className="w-4 h-4" />
+                        Follow
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="secondary"
+                    className="flex-1 md:flex-none gap-2"
+                    onClick={handleMessage}
+                  >
+                    <MessageCircle className="w-4 h-4" />
+                    Message
+                  </Button>
+                </div>
               )}
             </div>
           </div>

@@ -1,9 +1,23 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/lib/auth-client";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { MapIcon, MessageSquareHeart, ShieldAlert, ArrowRight, Activity, MapPin, Users } from "lucide-react";
 
 export default function LandingPage() {
+  const { data: session, isPending } = useSession();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isPending && session?.user) {
+      router.push("/feed");
+    }
+  }, [session, isPending, router]);
+
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden flex flex-col">
       {/* Navbar */}
